@@ -5,8 +5,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { db } from '@/lib/firebaseConfig'; 
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
-import CreateUserModal from '@/app/(dashboard)/admin/CreateUserModal';
-import EditUserModal from '@/app/(dashboard)/admin/EditUserModal';
+import CreateUserModal from '../CreateUserModal';
+import EditUserModal from '../EditUserModal';
 import { deleteUserAction } from '@/app/actions/userActions'; 
 import { toast } from 'react-hot-toast';
 import { useAuth } from '@/context/authContext';
