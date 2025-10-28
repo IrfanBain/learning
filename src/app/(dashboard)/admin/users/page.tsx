@@ -18,6 +18,7 @@ interface UserData {
   email: string;
   username: string;
   role: 'admin' | 'teacher' | 'student';
+  password?: string;
 }
 
 export default function ManageUsersPage() {

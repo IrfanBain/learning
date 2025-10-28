@@ -12,7 +12,7 @@ interface UserData {
   name: string;
   email: string;
   username: string;
-  password: string;
+  password?: string;
   role: 'admin' | 'teacher' | 'student';
 }
 
