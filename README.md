@@ -1,4 +1,4 @@
-# Lama Dev School Management Dashboard
+# Irfan dev learning
 
 ## Getting Started
 
