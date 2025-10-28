@@ -1,4 +1,4 @@
-# Irfan dev learning
+# Irfan Ganteng dev learning
 
 ## Getting Started
 

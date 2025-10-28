@@ -19,6 +19,7 @@ const allowedRoles: { [key: string]: Array<'admin' | 'teacher' | 'student'> } = 
   '/list/assignments': ['admin', 'teacher', 'student'], 
   '/list/discussions': ['admin', 'teacher', 'student'], 
   '/list/results': ['admin', 'teacher', 'student'], 
+  '/list/absensi': ['admin', 'teacher', 'student'], 
   '/list/events': ['admin', 'teacher', 'student'], 
   '/list/messages': ['admin', 'teacher', 'student'], 
   '/list/announcements': ['admin', 'teacher', 'student'], 
