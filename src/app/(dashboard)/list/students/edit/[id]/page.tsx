@@ -6,7 +6,7 @@ import Image from 'next/image'; // Impor Image
 import { toast } from 'react-hot-toast';
 import { updateStudentAction, StudentUpdateFormData } from '@/app/actions/studentActions';
 import { db } from '@/lib/firebaseConfig';
-import { doc, getDoc, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, Timestamp, collection, getDocs, query, orderBy, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 
 // Interface untuk props halaman dinamis
 interface EditStudentPageProps {
@@ -40,6 +40,11 @@ interface StudentData {
   };
 }
 
+interface ClassOption {
+    id: string;         // ID Dokumen Kelas (cth: "VII-A")
+    nama_kelas: string; // Nama Kelas (cth: "VII A")
+}
+
 // State Awal Form (tidak berubah)
 const initialFormState: Omit<StudentUpdateFormData, 'uid' | 'foto_profil'> = {
   nama_lengkap: '', nisn: '', nis: '', kelas: '', email: '',
@@ -65,6 +70,9 @@ export default function EditStudentPage({ params }: EditStudentPageProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [classes, setClasses] = useState<ClassOption[]>([]);
+  const [loadingClasses, setLoadingClasses] = useState(true);
+
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false); // Untuk loading submit
   const [pageLoading, setPageLoading] = useState(true); // Untuk loading fetch data awal
@@ -76,65 +84,80 @@ export default function EditStudentPage({ params }: EditStudentPageProps) {
     const fetchStudentData = async () => {
       setPageLoading(true);
       setError(null);
+      setLoadingClasses(true);
+      let fetchedStudentData: StudentData | null = null;
       try {
-        const docRef = doc(db, 'students', studentId as string);
-        const docSnap = await getDoc(docRef);
+        // 1. Fetch Data Siswa
+        const studentDocRef = doc(db, 'students', studentId);
+        const studentSnap = await getDoc(studentDocRef);
+        if (!studentSnap.exists()) { throw new Error("Data siswa tidak ditemukan."); }
+        fetchedStudentData = studentSnap.data() as StudentData;
 
-        if (docSnap.exists()) {
-          const student = docSnap.data() as StudentData;
-
-          let tglLahir = '';
-          if (student.tanggal_lahir && typeof (student.tanggal_lahir as Timestamp).toDate === 'function') {
-            tglLahir = (student.tanggal_lahir as Timestamp).toDate().toISOString().split('T')[0];
-          }
-
-          setFormData({
-            nama_lengkap: student.nama_lengkap || '',
-            nisn: student.nisn || '',
-            nis: student.nis || '',
-            kelas: student.kelas || '',
-            email: student.email || '',
-            jenis_kelamin: student.jenis_kelamin || 'L',
-            tempat_lahir: student.tempat_lahir || '',
-            tanggal_lahir: tglLahir,
-            agama: student.agama || 'Islam',
-            kewarganegaraan: student.kewarganegaraan || 'Indonesia',
-            asal_sekolah: student.asal_sekolah || '',
-            nomor_hp: student.nomor_hp || '',
-            status_siswa: student.status_siswa || 'aktif',
-            alamat_jalan: student.alamat?.jalan || '',
-            alamat_rt_rw: student.alamat?.rt_rw || '',
-            alamat_kelurahan_desa: student.alamat?.kelurahan_desa || '',
-            alamat_kecamatan: student.alamat?.kecamatan || '',
-            alamat_kota_kabupaten: student.alamat?.kota_kabupaten || '',
-            alamat_provinsi: student.alamat?.provinsi || '',
-            alamat_kode_pos: student.alamat?.kode_pos || '',
-            ortu_alamat: student.orang_tua?.alamat || '',
-            ortu_ayah_nama: student.orang_tua?.ayah?.nama || '',
-            ortu_ayah_pendidikan: student.orang_tua?.ayah?.pendidikan || '',
-            ortu_ayah_pekerjaan: student.orang_tua?.ayah?.pekerjaan || '',
-            ortu_ayah_telepon: student.orang_tua?.ayah?.telepon || '',
-            ortu_ibu_nama: student.orang_tua?.ibu?.nama || '',
-            ortu_ibu_pendidikan: student.orang_tua?.ibu?.pendidikan || '',
-            ortu_ibu_pekerjaan: student.orang_tua?.ibu?.pekerjaan || '',
-            ortu_ibu_telepon: student.orang_tua?.ibu?.telepon || '',
-          });
-          
-          // --- TAMBAHAN: Set preview foto dari data yang ada ---
-          setPreviewUrl(student.foto_profil || null);
-
-        } else {
-          setError("Data siswa tidak ditemukan.");
-          toast.error("Data siswa tidak ditemukan.");
+        // 2. Fetch Daftar Kelas (taruh di sini agar berjalan paralel jika memungkinkan)
+        try {
+            const classesCollection = collection(db, "classes");
+            const q = query(classesCollection, orderBy("tingkat", "asc"), orderBy("nama_kelas", "asc"));
+            const querySnapshot = await getDocs(q);
+            const classList = querySnapshot.docs.map((docSnap: QueryDocumentSnapshot<DocumentData>) => ({
+                id: docSnap.id,
+                nama_kelas: docSnap.data().nama_kelas || docSnap.id,
+            }));
+            setClasses(classList);
+        } catch (classErr) {
+            console.error("Error fetching classes:", classErr);
+            toast.error("Gagal memuat daftar kelas."); // Beri tahu user
+            // Lanjutkan meski kelas gagal dimuat
+        } finally {
+            setLoadingClasses(false); // Selesai loading kelas
         }
+
+        // 3. Isi Form State (SETELAH kedua fetch selesai atau gagal)
+        if (fetchedStudentData) {
+            const formatTimestampToInput = (ts: Timestamp | null | undefined): string => { return !ts?'':ts.toDate().toISOString().split('T')[0]; };
+
+            setFormData({
+                nama_lengkap: fetchedStudentData.nama_lengkap || '',
+                nisn: fetchedStudentData.nisn || '', // NISN tidak bisa diedit
+                nis: fetchedStudentData.nis || '',
+                kelas: fetchedStudentData.kelas || '', // <-- Isi dengan ID kelas dari DB
+                email: fetchedStudentData.email || '',
+                jenis_kelamin: fetchedStudentData.jenis_kelamin || 'L',
+                tempat_lahir: fetchedStudentData.tempat_lahir || '',
+                tanggal_lahir: formatTimestampToInput(fetchedStudentData.tanggal_lahir),
+                agama: fetchedStudentData.agama || 'Islam',
+                kewarganegaraan: fetchedStudentData.kewarganegaraan || 'Indonesia',
+                asal_sekolah: fetchedStudentData.asal_sekolah || '',
+                nomor_hp: fetchedStudentData.nomor_hp || '',
+                status_siswa: fetchedStudentData.status_siswa || 'aktif',
+                alamat_jalan: fetchedStudentData.alamat?.jalan || '',
+                alamat_rt_rw: fetchedStudentData.alamat?.rt_rw || '',
+                alamat_kelurahan_desa: fetchedStudentData.alamat?.kelurahan_desa || '',
+                alamat_kecamatan: fetchedStudentData.alamat?.kecamatan || '',
+                alamat_kota_kabupaten: fetchedStudentData.alamat?.kota_kabupaten || '',
+                alamat_provinsi: fetchedStudentData.alamat?.provinsi || '',
+                alamat_kode_pos: fetchedStudentData.alamat?.kode_pos || '',
+                ortu_alamat: fetchedStudentData.orang_tua?.alamat || '',
+                ortu_ayah_nama: fetchedStudentData.orang_tua?.ayah?.nama || '',
+                ortu_ayah_pendidikan: fetchedStudentData.orang_tua?.ayah?.pendidikan || '',
+                ortu_ayah_pekerjaan: fetchedStudentData.orang_tua?.ayah?.pekerjaan || '',
+                ortu_ayah_telepon: fetchedStudentData.orang_tua?.ayah?.telepon || '',
+                ortu_ibu_nama: fetchedStudentData.orang_tua?.ibu?.nama || '',
+                ortu_ibu_pendidikan: fetchedStudentData.orang_tua?.ibu?.pendidikan || '',
+                ortu_ibu_pekerjaan: fetchedStudentData.orang_tua?.ibu?.pekerjaan || '',
+                ortu_ibu_telepon: fetchedStudentData.orang_tua?.ibu?.telepon || '',
+            });
+             // Set preview foto
+            setPreviewUrl(fetchedStudentData.foto_profil || null);
+        }
+
       } catch (err: any) {
-        console.error("Error fetching student data: ", err);
-        setError("Gagal mengambil data siswa. Error: " + err.message);
+        console.error("Error fetching student data:", err);
+        setError("Gagal memuat data siswa: " + err.message);
+        toast.error("Gagal memuat data siswa.");
       } finally {
-        setPageLoading(false);
+        setPageLoading(false); // Selesai loading halaman utama
       }
     };
-
     fetchStudentData();
   }, [studentId]); 
 
@@ -233,7 +256,7 @@ export default function EditStudentPage({ params }: EditStudentPageProps) {
 
       if (result.success) {
         toast.success(result.message);
-        router.push('/admin/students');
+        router.push('/list/students');
         router.refresh();
       } else {
         setError(result.message); 
@@ -248,7 +271,7 @@ export default function EditStudentPage({ params }: EditStudentPageProps) {
   // Handler Tombol Batal (sama)
   const handleBatal = () => {
     if (loading) return; 
-    router.push('/admin/students');
+    router.push('/list/students');
   };
 
   if (pageLoading) {
@@ -303,7 +326,7 @@ export default function EditStudentPage({ params }: EditStudentPageProps) {
                         <input type="text" value={formData.nisn} readOnly className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 cursor-not-allowed"/>
                     </div>
                 </div>
-                <Input name="kelas" label="Kelas" value={formData.kelas} onChange={handleChange} />
+                {/* <Input name="kelas" label="Kelas" value={formData.kelas} onChange={handleChange} /> */}
                 <Input name="email" label="Email (Kontak)" value={formData.email} onChange={handleChange} type="email" />
               </div>
               
@@ -338,6 +361,18 @@ export default function EditStudentPage({ params }: EditStudentPageProps) {
           <div className="bg-white p-6 rounded-lg shadow-md space-y-4 border">
               <h3 className="text-lg font-semibold border-b pb-2">Data Diri</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <Select name="kelas" label="Kelas (Wajib)" value={formData.kelas} onChange={handleChange} required
+                         disabled={loadingClasses || classes.length === 0} // Disable saat loading/kosong
+                         options={
+                             loadingClasses
+                             ? [{ value: formData.kelas || '', label: 'Memuat kelas...' }]
+                             : classes.length === 0
+                             ? [{ value: '', label: 'Tidak ada kelas'}]
+                             // Opsi dari daftar kelas + pastikan kelas saat ini ada
+                             : (formData.kelas && !classes.some(c=>c.id===formData.kelas) ? [{value:formData.kelas, label:`Kelas ID: ${formData.kelas} (Memuat...)`}] : [])
+                               .concat(classes.map(cls => ({ value: cls.id, label: cls.nama_kelas })))
+                         }
+                 />
                 <Input name="nis" label="NIS" value={formData.nis} onChange={handleChange} />
                 <Select name="jenis_kelamin" label="Jenis Kelamin" value={formData.jenis_kelamin} onChange={handleChange} options={[{value: 'L', label: 'Laki-laki'}, {value: 'P', label: 'Perempuan'}]} />
                 <Input name="tempat_lahir" label="Tempat Lahir" value={formData.tempat_lahir} onChange={handleChange} />
@@ -433,7 +468,9 @@ const Input = ({ label, name, value, onChange, type = 'text', required = false, 
 type SelectProps = {
   label: string;
   name: string;
-  value: string | null | undefined; 
+  value: string | null | undefined;
+  required?: boolean;
+  disabled?: boolean; 
   onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   options: { value: string; label: string }[];
 }

@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation'; // Import useRouter
 import { toast } from 'react-hot-toast';
 import { createStudentAction } from '@/app/actions/studentActions';
-
+import { db } from '@/lib/firebaseConfig';
+import { collection, getDocs, query, orderBy, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 // Interface StudentFormData (di-copy dari modal Anda)
 // Rekomendasi: Pindahkan interface ini ke file terpusat misal 'types/student.ts'
 export interface StudentFormData {
@@ -39,6 +40,11 @@ export interface StudentFormData {
   ortu_ibu_telepon: string;
 }
 
+interface ClassOption {
+    id: string;         // ID Dokumen Kelas (cth: "VII-A")
+    nama_kelas: string; // Nama Kelas (cth: "VII A")
+}
+
 // Nilai Awal (di-copy dari modal Anda)
 const initialState: StudentFormData = {
   nama_lengkap: '', nisn: '', nis: '', kelas: '', email: 'email@gmail.com',
@@ -59,6 +65,40 @@ export default function CreateStudentPage() {
   const [formData, setFormData] = useState<StudentFormData>(initialState);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [classes, setClasses] = useState<ClassOption[]>([]);
+  const [loadingClasses, setLoadingClasses] = useState(true);
+
+  // --- Fetch Daftar Kelas ---
+  useEffect(() => {
+    const fetchClasses = async () => {
+      setLoadingClasses(true);
+      try {
+        const classesCollection = collection(db, "classes");
+        // Urutkan berdasarkan tingkat lalu nama (opsional tapi bagus)
+        const q = query(classesCollection, orderBy("tingkat", "asc"), orderBy("nama_kelas", "asc"));
+        const querySnapshot = await getDocs(q);
+        const classList = querySnapshot.docs.map((doc: QueryDocumentSnapshot<DocumentData>) => ({
+          id: doc.id, // ID Dokumen ("VII-A")
+          nama_kelas: doc.data().nama_kelas || doc.id, // Nama asli ("VII A")
+        }));
+        setClasses(classList);
+
+        // Jika ada kelas dan kelas di form belum dipilih, set default ke kelas pertama
+        if (classList.length > 0 && !formData.kelas) {
+             setFormData(prev => ({ ...prev, kelas: classList[0].id }));
+        }
+
+      } catch (err) {
+        console.error("Error fetching classes:", err);
+        toast.error("Gagal memuat daftar kelas.");
+        // Biarkan dropdown kosong atau tampilkan pesan error
+      } finally {
+        setLoadingClasses(false);
+      }
+    };
+    fetchClasses();
+     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Hanya fetch sekali
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -83,7 +123,7 @@ export default function CreateStudentPage() {
     if (result.success) {
       toast.success(result.message);
       // Ganti onClose() dengan navigasi
-      router.push('/admin/students'); // <-- Sesuaikan dengan route Anda
+      router.push('/list/students'); // <-- Sesuaikan dengan route Anda
       router.refresh(); // Memastikan data di halaman list ter-update
     } else {
       setError(result.message); 
@@ -93,7 +133,7 @@ export default function CreateStudentPage() {
   // Handler untuk tombol "Batal"
   const handleCancel = () => {
     if (loading) return;
-    router.push('/admin/students'); // <-- Sesuaikan dengan route Anda
+    router.push('/list/students'); // <-- Sesuaikan dengan route Anda
   };
 
   return (
@@ -154,7 +194,18 @@ export default function CreateStudentPage() {
               <h4 className="text-lg font-semibold text-gray-800 mb-2">Data Diri</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <Input name="nis" label="NIS" value={formData.nis} onChange={handleChange} />
-                <Select name="kelas" label="kelas" value={formData.kelas} onChange={handleChange} options={[{value: '7', label: '7'}, {value: '8', label: '8'}, {value: '9', label: '9'}]} />
+                <Select name="kelas" label="Kelas (Wajib)" value={formData.kelas} onChange={handleChange} 
+                        required
+                        disabled={loadingClasses || classes.length === 0} // Disable jika loading atau tidak ada kelas
+                        options={
+                            loadingClasses
+                            ? [{ value: '', label: 'Memuat kelas...' }]
+                            : classes.length === 0
+                            ? [{ value: '', label: 'Tidak ada kelas'}]
+                            // Map daftar kelas menjadi options
+                            : classes.map(cls => ({ value: cls.id, label: cls.nama_kelas }))
+                        }
+                />
                 <Input name="email" label="Email (Kontak)" value={formData.email} onChange={handleChange} type="email" />
                 <Select name="jenis_kelamin" label="Jenis Kelamin" value={formData.jenis_kelamin} onChange={handleChange} options={[{value: 'L', label: 'Laki-laki'}, {value: 'P', label: 'Perempuan'}]} />
                 <Input name="tempat_lahir" label="Tempat Lahir" value={formData.tempat_lahir} onChange={handleChange} />
@@ -225,6 +276,7 @@ type InputProps = {
   value: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
   type?: string;
+  required?: boolean;
 }
 
 const Input = ({ label, name, value, onChange, type = 'text' }: InputProps) => (
@@ -247,6 +299,8 @@ type SelectProps = {
   value: string;
   onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   options: { value: string; label: string }[];
+  required?: boolean;
+  disabled?: boolean;
 }
 
 const Select = ({ label, name, value, onChange, options }: SelectProps) => (

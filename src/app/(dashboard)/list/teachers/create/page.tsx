@@ -72,7 +72,7 @@ export default function CreateTeacherPage() {
     if (result.success) {
       toast.success(result.message);
       // Arahkan kembali ke halaman daftar guru (pastikan path ini benar)
-      router.push('/admin/teachers');
+      router.push('/list/teachers');
       router.refresh(); // Refresh data di halaman daftar
     } else {
       setError(result.message);
@@ -83,7 +83,7 @@ export default function CreateTeacherPage() {
   // Navigasi Batal
   const handleBatal = () => {
     if (loading) return;
-    router.push('/admin/teachers'); // (Pastikan path ini benar)
+    router.push('/list/teachers'); // (Pastikan path ini benar)
   };
 
   return (

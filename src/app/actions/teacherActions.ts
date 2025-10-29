@@ -153,8 +153,8 @@ export async function createTeacherAction(formData: TeacherFormData): Promise<Ac
       },
     });
     
-    // Sesuaikan path ini jika beda (misal: /admin/guru)
-    revalidatePath("/admin/teachers"); 
+    // Sesuaikan path ini jika beda (misal: /listguru)
+    revalidatePath("/listteachers"); 
     
     return { success: true, message: `Guru ${nama_lengkap} berhasil dibuat.` };
 
@@ -242,8 +242,8 @@ export async function updateTeacherAction(formData: TeacherUpdateFormData): Prom
     
     await adminDb.collection("teachers").doc(uid).update(teacherDbPayload);
 
-    revalidatePath("/admin/teachers"); 
-    revalidatePath(`/admin/teachers/${uid}/edit`); // (Sesuaikan path ini jika perlu)
+    revalidatePath("/listteachers"); 
+    revalidatePath(`/listteachers/${uid}/edit`); // (Sesuaikan path ini jika perlu)
     
     return { success: true, message: `Data ${profileData.nama_lengkap} berhasil diupdate.` };
 
@@ -275,7 +275,7 @@ export async function deleteTeacherAction(uid: string): Promise<ActionResult> {
       }
     }
 
-    revalidatePath("/admin/teachers"); 
+    revalidatePath("/listteachers"); 
 
     return { success: true, message: "Guru berhasil dihapus." };
 

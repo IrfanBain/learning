@@ -4,7 +4,7 @@ import * as admin from 'firebase-admin';
 import { adminAuth, adminDb } from "@/lib/firebaseAdminConfig";
 import { revalidatePath } from "next/cache";
 // Kita asumsikan 'StudentFormData' diimpor dari file 'create' page
-import { StudentFormData } from '@/app/(dashboard)/admin/students/create/page'; // (Perbarui path jika perlu)
+import { StudentFormData } from '@/app/(dashboard)/list/students/create/page'; // (Perbarui path jika perlu)
 
 interface ActionResult {
   success: boolean;
@@ -89,6 +89,8 @@ export async function createStudentAction(formData: StudentFormData): Promise<Ac
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
+    const classRef = adminDb.collection("classes").doc(kelas);
+
     // --- LANGKAH 3: Buat Dokumen di Koleksi 'students' ---
     const tanggalLahirTimestamp = tanggal_lahir 
       ? admin.firestore.Timestamp.fromDate(new Date(tanggal_lahir)) 
@@ -109,7 +111,7 @@ export async function createStudentAction(formData: StudentFormData): Promise<Ac
       nomor_hp: nomor_hp || null,
       status_siswa: status_siswa || "aktif",
       foto_profil: null, // Default
-      kelas_ref: null, // Default
+      kelas_ref: classRef,
       tanggal_masuk: admin.firestore.FieldValue.serverTimestamp(), 
 
       alamat: {
@@ -139,7 +141,7 @@ export async function createStudentAction(formData: StudentFormData): Promise<Ac
       }
     });
     
-    revalidatePath("/admin/students"); 
+    revalidatePath("/list/students"); 
     
     return { success: true, message: `Siswa ${nama_lengkap} berhasil dibuat.` };
 
@@ -169,6 +171,7 @@ export async function updateStudentAction(formData: StudentUpdateFormData): Prom
   if (!uid) {
     return { success: false, message: "UID Siswa tidak ditemukan." };
   }
+  // if (!kelas) { return { success: false, message: "Kelas wajib dipilih." }; }
 
   try {
     // --- LANGKAH 1: Update Firebase Authentication ---
@@ -182,6 +185,11 @@ export async function updateStudentAction(formData: StudentUpdateFormData): Prom
       name: profileData.nama_lengkap,
     });
 
+    // Buat class reference jika ada kelas yang dipilih
+    const classRef = profileData.kelas 
+      ? adminDb.collection("classes").doc(profileData.kelas)
+      : null;
+
     // --- LANGKAH 3: Update Dokumen di Koleksi 'students' ---
     const tanggalLahirTimestamp = profileData.tanggal_lahir
       ? admin.firestore.Timestamp.fromDate(new Date(profileData.tanggal_lahir)) 
@@ -193,6 +201,7 @@ export async function updateStudentAction(formData: StudentUpdateFormData): Prom
       nisn: profileData.nisn,
       nis: profileData.nis || null,
       kelas: profileData.kelas || null,
+      kelas_ref: classRef,
       email: profileData.email || null,
       jenis_kelamin: profileData.jenis_kelamin || null,
       tempat_lahir: profileData.tempat_lahir || null,
@@ -237,8 +246,8 @@ export async function updateStudentAction(formData: StudentUpdateFormData): Prom
     // Gunakan update, bukan set, agar field lain yang tidak diubah (seperti 'tanggal_masuk') tetap ada
     await adminDb.collection("students").doc(uid).update(studentDbPayload);
 
-    revalidatePath("/admin/students"); 
-    revalidatePath(`/admin/students/${uid}/edit`); // Revalidate halaman edit juga
+    revalidatePath("/list/students"); 
+    revalidatePath(`/list/students/${uid}/edit`); // Revalidate halaman edit juga
     
     return { success: true, message: `Data ${profileData.nama_lengkap} berhasil diupdate.` };
 
@@ -269,7 +278,7 @@ export async function deleteStudentAction(uid: string): Promise<ActionResult> {
       }
     }
 
-    revalidatePath("/admin/students"); 
+    revalidatePath("/list/students"); 
 
     return { success: true, message: "Siswa berhasil dihapus." };
 
