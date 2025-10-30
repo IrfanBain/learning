@@ -32,12 +32,12 @@ const menuItems = [
         href: "/list/students",
         visible: ["admin", "teacher"],
       },
-      // {
-      //   icon: "/parent.png",
-      //   label: "Orang Tua",
-      //   href: "/list/parents",
-      //   visible: ["admin", "teacher"],
-      // },
+      {
+        icon: "/parent.png",
+        label: "Jadwal",
+        href: "/list/schedules",
+        visible: ["admin"],
+      },
       // {
       //   icon: "/subject.png",
       //   label: "Mata Pelajaran",
@@ -52,8 +52,8 @@ const menuItems = [
       },
       {
         icon: "/lesson.png",
-        label: "Pelajaran",
-        href: "/list/lessons",
+        label: "Mata Pelajaran",
+        href: "/list/subjects",
         visible: ["admin", "teacher"],
       },
       {

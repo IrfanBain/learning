@@ -264,7 +264,7 @@ export default function EditTeacherPage() {
         setCurrentPhotoUrl(finalPhotoURL); // Update URL foto saat ini
         if (fileInputRef.current) fileInputRef.current.value = ""; // Kosongkan input file
         // Arahkan kembali ke daftar guru
-        router.push('/listteachers'); // Pastikan path ini benar
+        router.push('/list/teachers'); // Pastikan path ini benar
         router.refresh(); // Minta Next.js refresh data di halaman tujuan
       } else {
         // Jika action gagal, tampilkan pesan error
