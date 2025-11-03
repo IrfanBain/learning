@@ -23,7 +23,7 @@ const initialState: TeacherFormData = {
   jurusan_pendidikan: '',
   tanggal_mulai_kerja: '',
   mata_pelajaran_diampu: '', // Akan diisi sebagai string dipisah koma
-  peran: 'guru', // Default 'guru', dipisah koma jika > 1
+  peran: 'Guru', // Default 'guru', dipisah koma jika > 1
   wali_kelas_ref: '',
   alamat_jalan: '',
   alamat_rt_rw: '',
@@ -159,11 +159,11 @@ export default function CreateTeacherPage() {
             {/* Input untuk Array (dipisah koma) */}
              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
               <div>
-                <Input name="mata_pelajaran_diampu" label="Mata Pelajaran (Dipisah Koma)" value={formData.mata_pelajaran_diampu} onChange={handleChange} placeholder="Contoh: mtk, fisika, b. indo" />
+                <Input name="mata_pelajaran_diampu" label="Mata Pelajaran (Dipisah Koma)" value={formData.mata_pelajaran_diampu} onChange={handleChange} placeholder="Contoh: Mtk, Fisika, B.Indo" />
                 {/* <p className="text-xs text-gray-500 mt-1">Contoh: mtk, fisika, bahasa indonesia</p> */}
               </div>
               <div>
-                <Input name="peran" label="Peran (Dipisah Koma)" value={formData.peran} onChange={handleChange} placeholder="Minimal 'guru'. Contoh: guru, staf tu" required />
+                <Input name="peran" label="Peran (Dipisah Koma)" value={formData.peran} onChange={handleChange} placeholder="Minimal 'Guru'. Contoh: Guru, Staf TU" required />
                 {/* <p className="text-xs text-gray-500 mt-1">Contoh: guru, staf tu, admin</p> */}
               </div>
              </div>
