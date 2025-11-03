@@ -154,7 +154,7 @@ export default function CreateTeacherPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Input name="jurusan_pendidikan" label="Jurusan Pendidikan" value={formData.jurusan_pendidikan} onChange={handleChange} />
               <Input name="tanggal_mulai_kerja" label="Tgl. Mulai Kerja" value={formData.tanggal_mulai_kerja} onChange={handleChange} type="date" />
-              <Input name="wali_kelas_ref" label="ID Wali Kelas (Opsional)" value={formData.wali_kelas_ref} onChange={handleChange} placeholder="Kosongkan jika bukan wali kelas"/>
+              {/* <Input name="wali_kelas_ref" label="ID Wali Kelas (Opsional)" value={formData.wali_kelas_ref} onChange={handleChange} placeholder="Kosongkan jika bukan wali kelas"/> */}
             </div>
             {/* Input untuk Array (dipisah koma) */}
              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
