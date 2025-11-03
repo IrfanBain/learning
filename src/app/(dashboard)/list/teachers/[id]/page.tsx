@@ -171,7 +171,7 @@ export default function SingleTeacherPage() {
                     <h1 className="text-2xl font-bold text-gray-800">{teacherData.nama_lengkap}</h1>
                     {currentUser?.role === "admin" && (
                       <Link
-                        href={`/list/teachers/${teacherId}/edit`}
+                        href={`/list/teachers/edit/${teacherId}`}
                         className="flex-shrink-0 flex items-center gap-2 px-3 py-1.5 bg-blue-500 text-white rounded-md hover:bg-blue-600 text-xs sm:text-sm"
                         title="Edit Data Guru"
                       >
