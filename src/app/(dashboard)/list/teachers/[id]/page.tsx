@@ -96,7 +96,7 @@ export default function SingleTeacherPage() {
       return (
         <div className="p-8 text-center text-gray-600">
           Data guru tidak ditemukan.
-          <Link href="/admin/teachers" className="text-blue-600 hover:underline block mt-2">
+          <Link href="/list/teachers" className="text-blue-600 hover:underline block mt-2">
              Kembali ke Daftar Guru
           </Link>
         </div>
@@ -139,7 +139,7 @@ export default function SingleTeacherPage() {
   return (
     <div className="flex-1 p-4 md:p-6 lg:p-8 flex flex-col gap-6">
       {/* Tombol Kembali */}
-      <button onClick={() => router.push('/admin/teachers')} className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-0 self-start">
+      <button onClick={() => router.push('/list/teachers')} className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-0 self-start">
         <FiArrowLeft /> Kembali ke Daftar Guru
       </button>
 
@@ -171,7 +171,7 @@ export default function SingleTeacherPage() {
                     <h1 className="text-2xl font-bold text-gray-800">{teacherData.nama_lengkap}</h1>
                     {currentUser?.role === "admin" && (
                       <Link
-                        href={`/admin/teachers/${teacherId}/edit`}
+                        href={`/list/teachers/edit/${teacherId}`}
                         className="flex-shrink-0 flex items-center gap-2 px-3 py-1.5 bg-blue-500 text-white rounded-md hover:bg-blue-600 text-xs sm:text-sm"
                         title="Edit Data Guru"
                       >
@@ -258,10 +258,10 @@ export default function SingleTeacherPage() {
               </div>
 
           {/* BAGIAN KALENDER */}
-          <div className="bg-white rounded-lg p-4 shadow-md border h-[800px]">
+          {/* <div className="bg-white rounded-lg p-4 shadow-md border h-[800px]">
               <h1 className="text-xl font-semibold mb-4">Jadwal Mengajar Guru</h1>
               <BigCalendar />
-          </div>
+          </div> */}
 
         </div>
 
@@ -272,13 +272,13 @@ export default function SingleTeacherPage() {
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-100">
              <h3 className="text-lg font-semibold text-gray-700 mb-4 border-b pb-2">Pintasan Terkait</h3>
             <div className="flex flex-col gap-3 text-sm">
-              <Link className="p-3 rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors" href={`/admin/classes?teacherId=${teacherId}`}>
+              <Link className="p-3 rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors" href={`/list/classes?teacherId=${teacherId}`}>
                 Lihat Kelas yang Diajar
               </Link>
-              <Link className="p-3 rounded-md bg-green-50 text-green-700 hover:bg-green-100 transition-colors" href={`/admin/students?homeroomTeacherId=${teacherId}`}>
+              <Link className="p-3 rounded-md bg-green-50 text-green-700 hover:bg-green-100 transition-colors" href={`/list/students?homeroomTeacherId=${teacherId}`}>
                 Lihat Siswa Wali Kelas
               </Link>
-              <Link className="p-3 rounded-md bg-yellow-50 text-yellow-700 hover:bg-yellow-100 transition-colors" href={`/admin/lessons?teacherId=${teacherId}`}>
+              <Link className="p-3 rounded-md bg-yellow-50 text-yellow-700 hover:bg-yellow-100 transition-colors" href={`/list/lessons?teacherId=${teacherId}`}>
                 Lihat Pelajaran Dibuat
               </Link>
             </div>
