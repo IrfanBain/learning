@@ -203,8 +203,9 @@ export default function EditTeacherPage() {
           body: JSON.stringify({
             contentType: selectedFile.type,
             fileExtension: fileExtension,
+            fileName: selectedFile.name,
             // Anda bisa tambahkan prefix folder di sini jika mau
-            // prefix: `teachers/${teacherId}/profile`
+            prefix: `user_photo`
           }),
         });
 
@@ -282,7 +283,7 @@ export default function EditTeacherPage() {
 
 
   // Handler Tombol Batal
-  const handleBatal = () => { if (!loading && !pageLoading) router.push('/listteachers'); }; // Pastikan path ini benar
+  const handleBatal = () => { if (!loading && !pageLoading) router.push('/list/teachers'); }; // Pastikan path ini benar
 
   // Tampilan Loading Awal
   if (pageLoading) {

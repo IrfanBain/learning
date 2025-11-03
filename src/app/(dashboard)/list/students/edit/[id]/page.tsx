@@ -211,7 +211,9 @@ export default function EditStudentPage({ params }: EditStudentPageProps) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             contentType: selectedFile.type,
-            fileExtension: fileExtension
+            fileExtension: fileExtension,
+            fileName: selectedFile.name,
+            prefix: `user_photo`,
           }),
         });
 

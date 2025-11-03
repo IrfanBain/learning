@@ -38,12 +38,6 @@ const menuItems = [
         href: "/list/schedules",
         visible: ["admin"],
       },
-      // {
-      //   icon: "/subject.png",
-      //   label: "Mata Pelajaran",
-      //   href: "/list/subjects",
-      //   visible: ["admin"],
-      // },
       {
         icon: "/class.png",
         label: "Kelas",
@@ -59,68 +53,83 @@ const menuItems = [
       {
         icon: "/exam.png",
         label: "Latihan",
-        href: "/list/exams",
+        getHref: (role: string | null) => { 
+          if (role === 'admin') return '/admin/examPage';
+          if (role === 'teacher') return '/teacher/examsPage'; 
+          if (role === 'student') return '/student/examPage';
+          return '/'; 
+      },
         visible: ["admin", "teacher", "student",],
       },
       {
         icon: "/assignment.png",
-        label: "Tugas",
-        href: "/list/assignments",
+        label: "Tugas PR",
+        getHref: (role: string | null) => { 
+          if (role === 'admin') return '/admin/homework';
+          if (role === 'teacher') return '/teacher/homework'; 
+          if (role === 'student') return '/student/homework';
+          return '/'; 
+      },
         visible: ["admin", "teacher", "student",],
       },
-      {
-        icon: "/assignment.png",
-        label: "Diskusi",
-        href: "/list/discussions",
-        visible: ["admin", "teacher", "student",],
-      },
+      // {
+      //   icon: "/assignment.png",
+      //   label: "Diskusi",
+      //   href: "/list/discussions",
+      //   visible: ["admin", "teacher", "student",],
+      // },
       {
         icon: "/result.png",
         label: "Nilai",
-        href: "/list/results",
+         getHref: (role: string | null) => { 
+          if (role === 'admin') return '/admin/results';
+          if (role === 'teacher') return '/teacher/results'; 
+          if (role === 'student') return '/student/results';
+          return '/'; 
+      },
         visible: ["admin", "teacher", "student",],
       },
-      {
-        icon: "/attendance.png",
-        label: "Absensi",
-        href: "/list/absensi",
-        visible: ["admin", "teacher", "student",],
-      },
-      {
-        icon: "/calendar.png",
-        label: "Event",
-        href: "/list/events",
-        visible: ["admin", "teacher", "student",],
-      },
-      {
-        icon: "/message.png",
-        label: "Pesan",
-        href: "/list/messages",
-        visible: ["admin", "teacher", "student",],
-      },
-      {
-        icon: "/announcement.png",
-        label: "Pengumuman",
-        href: "/list/announcements",
-        visible: ["admin", "teacher", "student",],
-      },
+      // {
+      //   icon: "/attendance.png",
+      //   label: "Absensi",
+      //   href: "/list/absensi",
+      //   visible: ["admin", "teacher", "student",],
+      // },
+      // {
+      //   icon: "/calendar.png",
+      //   label: "Event",
+      //   href: "/list/events",
+      //   visible: ["admin", "teacher", "student",],
+      // },
+      // {
+      //   icon: "/message.png",
+      //   label: "Pesan",
+      //   href: "/list/messages",
+      //   visible: ["admin", "teacher", "student",],
+      // },
+      // {
+      //   icon: "/announcement.png",
+      //   label: "Pengumuman",
+      //   href: "/list/announcements",
+      //   visible: ["admin", "teacher", "student",],
+      // },
     ],
   },
   {
     title: "LAINNYA",
     items: [
-      {
-        icon: "/profile.png",
-        label: "Profil",
-        href: "/profile",
-        visible: ["admin", "teacher", "student",],
-      },
-      {
-        icon: "/setting.png",
-        label: "Pengaturan",
-        href: "/settings",
-        visible: ["admin", "teacher", "student",],
-      },
+      // {
+      //   icon: "/profile.png",
+      //   label: "Profil",
+      //   href: "/profile",
+      //   visible: ["admin", "teacher", "student",],
+      // },
+      // {
+      //   icon: "/setting.png",
+      //   label: "Pengaturan",
+      //   href: "/settings",
+      //   visible: ["admin", "teacher", "student",],
+      // },
       {
         icon: "/profile.png",
         label: "Pengguna",

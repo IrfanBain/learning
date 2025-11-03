@@ -84,7 +84,7 @@ const getUserDataFromFirestore = async (uid: string): Promise<UserData | null> =
       }
 
       const userCredential = await signInWithEmailAndPassword(auth, emailInternal, password);
-      console.log("Login berhasil:", userCredential.user);
+      // console.log("Login berhasil:", userCredential.user);
 
       const user = userCredential.user;
       // --- Ambil data & role dari Firestore ---
@@ -92,7 +92,7 @@ const getUserDataFromFirestore = async (uid: string): Promise<UserData | null> =
       const userData = await getUserDataFromFirestore(user.uid);
 
       if (userData) {
-        console.log("Data Firestore ditemukan:", userData);
+        // console.log("Data Firestore ditemukan:", userData);
 
         // ------------------------------------------------------------
 
