@@ -1,4 +1,4 @@
-// src/app/(dashboard)/admin/students/[id]/page.tsx
+// src/app/(dashboard)/list/students/[id]/page.tsx
 "use client"; 
 
 import React, { useState, useEffect } from 'react';
@@ -115,7 +115,7 @@ const SingleStudentPage = () => {
     return (
       <div className="p-8 text-center">
         Data siswa tidak ditemukan.
-        <Link href="/admin/students" className="text-blue-600 hover:underline block mt-2">
+        <Link href="/list/students" className="text-blue-600 hover:underline block mt-2">
           Kembali ke Daftar Siswa
         </Link>
       </div>
@@ -279,11 +279,11 @@ const SingleStudentPage = () => {
           <h1 className="text-xl font-semibold">Pintasan</h1>
           <div className="mt-4 flex gap-4 flex-wrap text-xs text-gray-500">
              {/* Pastikan 'student.id' adalah UID */}
-            <Link className="p-3 rounded-md bg-lamaSkyLight hover:bg-blue-100" href={`/admin/lessons?studentId=${student.id}`}>Pelajaran Siswa</Link>
-            <Link className="p-3 rounded-md bg-lamaPurpleLight hover:bg-purple-100" href={`/admin/teachers?studentId=${student.id}`}>Guru Siswa</Link>
-            <Link className="p-3 rounded-md bg-pink-50 hover:bg-pink-100" href={`/admin/exams?studentId=${student.id}`}>Latihan Siswa</Link>
-            <Link className="p-3 rounded-md bg-lamaSkyLight hover:bg-blue-100" href={`/admin/assignments?studentId=${student.id}`}>Tugas Siswa</Link>
-            <Link className="p-3 rounded-md bg-lamaYellowLight hover:bg-yellow-100" href={`/admin/results?studentId=${student.id}`}>Nilai Siswa</Link>
+            <Link className="p-3 rounded-md bg-lamaSkyLight hover:bg-blue-100" href={`/list/lessons?studentId=${student.id}`}>Pelajaran Siswa</Link>
+            <Link className="p-3 rounded-md bg-lamaPurpleLight hover:bg-purple-100" href={`/list/teachers?studentId=${student.id}`}>Guru Siswa</Link>
+            <Link className="p-3 rounded-md bg-pink-50 hover:bg-pink-100" href={`/list/exams?studentId=${student.id}`}>Latihan Siswa</Link>
+            <Link className="p-3 rounded-md bg-lamaSkyLight hover:bg-blue-100" href={`/list/assignments?studentId=${student.id}`}>Tugas Siswa</Link>
+            <Link className="p-3 rounded-md bg-lamaYellowLight hover:bg-yellow-100" href={`/list/results?studentId=${student.id}`}>Nilai Siswa</Link>
           </div>
         </div>
         {/* Komponen Lain */}
