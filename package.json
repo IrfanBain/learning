@@ -14,6 +14,7 @@
     "@hookform/resolvers": "^3.9.0",
     "@types/react-big-calendar": "^1.8.9",
     "@types/uuid": "^10.0.0",
+    "@vercel/analytics": "^1.5.0",
     "date-fns": "^4.1.0",
     "firebase": "^12.4.0",
     "firebase-admin": "^13.5.0",

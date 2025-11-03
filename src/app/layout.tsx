@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/next"
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from '@/context/authContext'; 
@@ -29,6 +30,7 @@ export default function RootLayout({
         <AuthProvider> 
           {children}
         </AuthProvider>
+        <Analytics />
         {/* --- AKHIR WRAPPER --- */}
       </body>
     </html>
