@@ -258,10 +258,10 @@ export default function SingleTeacherPage() {
               </div>
 
           {/* BAGIAN KALENDER */}
-          <div className="bg-white rounded-lg p-4 shadow-md border h-[800px]">
+          {/* <div className="bg-white rounded-lg p-4 shadow-md border h-[800px]">
               <h1 className="text-xl font-semibold mb-4">Jadwal Mengajar Guru</h1>
               <BigCalendar />
-          </div>
+          </div> */}
 
         </div>
 
