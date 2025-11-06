@@ -174,7 +174,7 @@ const UserProfile = () => {
   if (loading || authLoading || !userData) {
     return (
       <div className="py-2 px-6 h-screen flex justify-center items-center">
-        <p className="text-xl">Memuat data profil...</p>
+        <p className="text-xl">Memuat data profil......</p>
       </div>
     );
   }
