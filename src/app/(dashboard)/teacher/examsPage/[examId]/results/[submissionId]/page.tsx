@@ -111,7 +111,7 @@ const StudentResultPage = () => {
 
         try {
             // 1. Ambil data jawaban siswa (submission)
-            const subRef = doc(db, "student's_answer", submissionId);
+            const subRef = doc(db, "students_answers", submissionId);
             const subSnap = await getDoc(subRef);
             if (!subSnap.exists()) {
                 throw new Error("Data jawaban siswa tidak ditemukan.");
@@ -239,7 +239,7 @@ const StudentResultPage = () => {
         try {
             const totalScore = currentTotalEssayScore; // Ambil dari state memo
             
-            const subRef = doc(db, "student's_answer", submissionId);
+            const subRef = doc(db, "students_answers", submissionId);
             await updateDoc(subRef, {
                 nilai_esai: totalScore // Simpan total skor esai
             });

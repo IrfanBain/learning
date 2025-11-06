@@ -269,16 +269,22 @@ const TeacherExamPage = () => {
     };
 
     // --- TAMPILAN (RENDER) ---
-    return (
+return (
         <div className="p-4 sm:p-6 bg-gray-50 min-h-screen font-sans">
+            
             {/* Header Halaman */}
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold text-gray-800">Manajemen Latihan & Ujian</h1>
+            {/* RESPONSIF: Dibuat flex-col di HP, dan sm:flex-row di layar lebih besar */}
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4 sm:gap-0">
+                {/* RESPONSIF: Ukuran font diubah di HP */}
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Manajemen Latihan & Ujian</h1>
+                
                 {/* Tombol Ganti Tampilan */}
-                <div className="flex gap-2">
+                {/* RESPONSIF: Dibuat flex-col di HP, dan sm:flex-row di layar lebih besar */}
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                     <button
                         onClick={() => setView('list')}
-                        className={`flex items-center gap-2 py-2 px-4 rounded-lg transition-all ${
+                        // RESPONSIF: Tambahkan w-full sm:w-auto dan justify-center
+                        className={`flex items-center justify-center sm:justify-start gap-2 py-2 px-4 rounded-lg transition-all w-full sm:w-auto ${
                             view === 'list' 
                             ? 'bg-blue-600 text-white shadow-md' 
                             : 'bg-white text-gray-600 hover:bg-gray-100 border'
@@ -289,7 +295,8 @@ const TeacherExamPage = () => {
                     </button>
                     <button
                         onClick={() => setView('create')}
-                        className={`flex items-center gap-2 py-2 px-4 rounded-lg transition-all ${
+                        // RESPONSIF: Tambahkan w-full sm:w-auto dan justify-center
+                        className={`flex items-center justify-center sm:justify-start gap-2 py-2 px-4 rounded-lg transition-all w-full sm:w-auto ${
                             view === 'create' 
                             ? 'bg-blue-600 text-white shadow-md' 
                             : 'bg-white text-gray-600 hover:bg-gray-100 border'
@@ -336,6 +343,7 @@ const TeacherExamPage = () => {
 
             {/* Tampilan Form Buat Latihan Baru */}
             {view === 'create' && (
+                // (Form ini sudah responsif karena menggunakan md:grid-cols-2)
                 <div className="bg-white p-4 sm:p-6 rounded-xl shadow-md border border-gray-100">
                     <h2 className="text-xl font-semibold text-gray-800 mb-4">Buat Latihan Baru (Informasi Umum)</h2>
                     <p className="text-sm text-gray-500 mb-6">
@@ -457,7 +465,8 @@ const TeacherExamPage = () => {
                             <button
                                 type="submit"
                                 disabled={formLoading}
-                                className="flex items-center justify-center gap-2 py-2 px-6 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+                                // RESPONSIF: Tambahkan w-full sm:w-auto
+                                className="flex items-center justify-center gap-2 py-2 px-6 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 w-full sm:w-auto"
                             >
                                 {formLoading ? (
                                     <Loader2 className="w-5 h-5 animate-spin" />
@@ -491,15 +500,15 @@ const ExamListItem = ({ exam }: { exam: ExamDoc }) => {
         }
     };
     
-    // Format tanggal
     const deadline = exam.tanggal_selesai ? (exam.tanggal_selesai as Timestamp).toDate().toLocaleString('id-ID', {
         day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
     }) : 'N/A';
 
-
     return (
-        <div className="border border-gray-200 rounded-lg p-4 flex items-center justify-between hover:bg-gray-50 transition-all">
-            <div className="flex items-center gap-4">
+        // RESPONSIF: Dibuat flex-col di HP, sm:flex-row di layar lebih besar, items-start di HP
+        <div className="border border-gray-200 rounded-lg p-4 flex flex-col sm:flex-row items-start sm:items-center sm:justify-between hover:bg-gray-50 transition-all">
+            {/* RESPONSIF: Dibuat w-full agar memenuhi container di HP */}
+            <div className="flex items-center gap-4 w-full">
                 {/* Ikon Tipe */}
                 <div className="flex-shrink-0">
                     {exam.tipe === 'Pilihan Ganda' && <List className="w-6 h-6 text-blue-500" />}
@@ -507,13 +516,18 @@ const ExamListItem = ({ exam }: { exam: ExamDoc }) => {
                     {/* {exam.tipe === 'Tugas (Upload File)' && <FileText className="w-6 h-6 text-purple-500" />} */}
                 </div>
                 {/* Info */}
-                <div>
-                    <h3 className="text-lg font-semibold text-gray-800">{exam.judul}</h3>
-                    <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
+                {/* RESPONSIF: Dibuat w-full agar mengambil sisa ruang */}
+                <div className="w-full">
+                    {/* RESPONSIF: Ukuran font diubah di HP */}
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-800">{exam.judul}</h3>
+                    {/* RESPONSIF: Dibuat flex-col di HP, sm:flex-row di layar lebih besar, items-start di HP */}
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1 sm:gap-4 text-sm text-gray-600 mt-1">
                         <span>{exam.mapelNama}</span>
-                        <span className="text-gray-300">|</span>
+                        {/* RESPONSIF: Sembunyikan pembatas di HP */}
+                        <span className="text-gray-300 hidden sm:inline">|</span>
                         <span>{exam.kelasNama}</span>
-                        <span className="text-gray-300">|</span>
+                        {/* RESPONSIF: Sembunyikan pembatas di HP */}
+                        <span className="text-gray-300 hidden sm:inline">|</span>
                         <span className="flex items-center gap-1">
                             <Clock className="w-4 h-4" /> {deadline}
                         </span>
@@ -521,13 +535,15 @@ const ExamListItem = ({ exam }: { exam: ExamDoc }) => {
                 </div>
             </div>
             {/* Aksi & Status */}
-            <div className="flex items-center gap-4">
+            {/* RESPONSIF: Dibuat flex-col di HP, sm:flex-row, w-full, dan diberi batas atas di HP */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 w-full sm:w-auto mt-4 sm:mt-0 pt-4 sm:pt-0 border-t sm:border-t-0 border-gray-100">
                 {getStatusChip(exam.status)}
-                {/* Tombol ini akan mengarah ke halaman edit/manajemen soal */}
+                
                 {(exam.status === 'Dipublikasi' || exam.status === 'Ditutup') && (
                      <Link 
                         href={`/teacher/examsPage/${exam.id}/results`} 
-                        className="flex items-center gap-1.5 text-sm text-green-600 hover:text-green-800 font-medium py-1 px-2 rounded-md hover:bg-green-50"
+                        // RESPONSIF: Dibuat w-full di HP
+                        className="flex items-center justify-center sm:justify-start gap-1.5 text-sm text-green-600 hover:text-green-800 font-medium py-1 px-2 rounded-md hover:bg-green-50 w-full sm:w-auto"
                     >
                         <Award className="w-4 h-4" />
                         Lihat Hasil
@@ -535,7 +551,8 @@ const ExamListItem = ({ exam }: { exam: ExamDoc }) => {
                 )}
                 <Link 
                     href={`/teacher/examsPage/${exam.id}`} // <-- Path dinamis
-                    className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 font-medium"
+                    // RESPONSIF: Dibuat w-full di HP
+                    className="flex items-center justify-center sm:justify-start gap-1 text-sm text-blue-600 hover:text-blue-800 font-medium w-full sm:w-auto"
                 >
                     Kelola Soal <ChevronRight className="w-4 h-4" />
                 </Link>

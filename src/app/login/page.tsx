@@ -203,14 +203,14 @@ const getUserDataFromFirestore = async (uid: string): Promise<UserData | null> =
                   />
                 </div>
                 {/* Remember Me & Forgot Password (Tidak berubah) */}
-                <div className="flex items-center justify-between pt-1">
+                {/* <div className="flex items-center justify-between pt-1">
                     <div className="flex items-center">
                         <input id="remember-me" name="remember-me" type="checkbox" className="h-4 w-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500" />
                         <label htmlFor="remember-me" className="ml-2 block text-xs sm:text-sm text-gray-700">Ingat saya</label>
                     </div>
                     <Link href="/forgot-password" // Ganti # dengan link yang benar
                       className="text-xs sm:text-sm text-green-600 hover:underline">Lupa password?</Link>
-                </div>
+                </div> */}
                 {/* Tombol Login */}
                 <div className="pt-2">
                     {/* --- PERUBAHAN: Hapus Link, jadikan button biasa --- */}
@@ -234,7 +234,7 @@ const getUserDataFromFirestore = async (uid: string): Promise<UserData | null> =
           {/* === Kolom Kiri (Fitur) - (Tidak Berubah) === */}
           <div className="space-y-6 lg:space-y-8 pr-0 lg:pr-8 pb-10 lg:pb-0">
             <div className="backdrop-blur-lg bg-white/90 p-6 rounded-2xl shadow-2xl w-full">
-              <h1 className="text-2xl sm:text-3xl font-bold text-green-600 mb-6">E-Learning MTs Al-Khairiyah Tanjung Wangi</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-green-600 mb-6">Sistem Pembelajaran Online MTs Al-Khairiyah</h1>
               <div className="space-y-5 sm:space-y-6">
                 {/* Fitur 1 */}
                 <div className="flex items-start space-x-3 sm:space-x-4">
@@ -249,7 +249,7 @@ const getUserDataFromFirestore = async (uid: string): Promise<UserData | null> =
                   </div>
                 </div>
                 {/* Fitur 2 */}
-                <div className="flex items-start space-x-3 sm:space-x-4">
+                {/* <div className="flex items-start space-x-3 sm:space-x-4">
                   <div className="p-2 bg-green-100 rounded-full">
                     <FaBookOpen className="text-lg text-green-600" />
                   </div>
@@ -259,7 +259,7 @@ const getUserDataFromFirestore = async (uid: string): Promise<UserData | null> =
                       Akses ribuan video pembelajaran, modul interaktif, dan bank soal kapan saja, di mana saja.
                     </p>
                   </div>
-                </div>
+                </div> */}
                 {/* Fitur 3 */}
                 <div className="flex items-start space-x-3 sm:space-x-4">
                   <div className="p-2 bg-green-100 rounded-full">

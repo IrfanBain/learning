@@ -94,7 +94,7 @@ const StudentExamPage = () => {
             );
 
             const submissionsQuery = query(
-                collection(db, "student's_answer"),
+                collection(db, "students_answers"),
                 where("student_ref", "==", studentRef)
             );
 
