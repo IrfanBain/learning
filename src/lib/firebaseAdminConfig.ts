@@ -1,4 +1,3 @@
-// lib/firebaseAdminConfig.ts
 import * as admin from 'firebase-admin';
 
 // 1. Ambil string JSON dari Environment Variable Vercel

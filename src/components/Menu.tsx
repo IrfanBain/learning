@@ -72,12 +72,12 @@ const menuItems = [
       },
         visible: ["admin", "teacher", "student",],
       },
-      // {
-      //   icon: "/assignment.png",
-      //   label: "Diskusi",
-      //   href: "/list/discussions",
-      //   visible: ["admin", "teacher", "student",],
-      // },
+      {
+        icon: "/assignment.png",
+        label: "Diskusi",
+        href: "/list/discussions",
+        visible: ["admin", "teacher", "student",],
+      },
       {
         icon: "/result.png",
         label: "Nilai",
@@ -95,35 +95,35 @@ const menuItems = [
       //   href: "/list/absensi",
       //   visible: ["admin", "teacher", "student",],
       // },
-      // {
-      //   icon: "/calendar.png",
-      //   label: "Event",
-      //   href: "/list/events",
-      //   visible: ["admin", "teacher", "student",],
-      // },
+      {
+        icon: "/calendar.png",
+        label: "Event",
+        href: "/list/events",
+        visible: ["admin", "teacher", "student",],
+      },
       // {
       //   icon: "/message.png",
       //   label: "Pesan",
       //   href: "/list/messages",
       //   visible: ["admin", "teacher", "student",],
       // },
-      // {
-      //   icon: "/announcement.png",
-      //   label: "Pengumuman",
-      //   href: "/list/announcements",
-      //   visible: ["admin", "teacher", "student",],
-      // },
+      {
+        icon: "/announcement.png",
+        label: "Pengumuman",
+        href: "/list/announcements",
+        visible: ["admin", "teacher", "student",],
+      },
     ],
   },
   {
     title: "LAINNYA",
     items: [
-      // {
-      //   icon: "/profile.png",
-      //   label: "Profil",
-      //   href: "/profile",
-      //   visible: ["admin", "teacher", "student",],
-      // },
+      {
+        icon: "/profile.png",
+        label: "Profil",
+        href: "/profile",
+        visible: [ "teacher", "student",],
+      },
       // {
       //   icon: "/setting.png",
       //   label: "Pengaturan",

@@ -96,7 +96,7 @@ const StudentResultPage = () => {
         try {
             // 1. Ambil data jawaban siswa (submission)
             // Data ini sekarang akan otomatis berisi 'nilai_esai' (baik null atau angka)
-            const subRef = doc(db, "student's_answer", submissionId as string);
+            const subRef = doc(db, "students_answers", submissionId as string);
             const subSnap = await getDoc(subRef);
             if (!subSnap.exists()) {
                 throw new Error("Data jawaban siswa tidak ditemukan.");

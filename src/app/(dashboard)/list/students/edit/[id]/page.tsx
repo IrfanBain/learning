@@ -367,7 +367,7 @@ export default function EditStudentPage({ params }: EditStudentPageProps) {
                          disabled={loadingClasses || classes.length === 0} // Disable saat loading/kosong
                          options={
                              loadingClasses
-                             ? [{ value: formData.kelas || '', label: 'Memuat kelas...' }]
+                             ? [{ value: formData.kelas || '', label: 'Pilih Kelas' }]
                              : classes.length === 0
                              ? [{ value: '', label: 'Tidak ada kelas'}]
                              // Opsi dari daftar kelas + pastikan kelas saat ini ada

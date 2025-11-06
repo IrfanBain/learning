@@ -4,6 +4,9 @@ import PRChart from "@/components/PRChart";
 import EventCalendar from "@/components/EventCalendar";
 import FinanceChart from "@/components/FinanceChart";
 import UserCard from "@/components/UserCard";
+import CalendarWidget from "@/components/CalendarWidget";
+import TugasTerbaru from "@/components/TugasTerbaru";
+import LatihanTerbaru from "@/components/LatihanTerbaru";
 
 const AdminPage = () => {
   return (
@@ -14,7 +17,7 @@ const AdminPage = () => {
         <div className="flex gap-4 justify-between flex-wrap">
           <UserCard type="siswa" />
           <UserCard type="guru" />
-          <UserCard type="staf" />
+          <UserCard type="kelas" />
         </div>
       
         <div className="flex gap-4 flex-col lg:flex-row">
@@ -28,12 +31,15 @@ const AdminPage = () => {
           </div>
         </div>
        
-        <div className="w-full h-[500px]">
-          <FinanceChart />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* <FinanceChart /> */}
+          <TugasTerbaru />
+          <LatihanTerbaru />
         </div>
       </div>
      
       <div className="w-full lg:w-1/3 flex flex-col gap-8">
+        <CalendarWidget />
         <EventCalendar />
         <Announcements/>
       </div>

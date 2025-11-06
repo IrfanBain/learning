@@ -146,7 +146,7 @@ const ExamResultsPage = () => {
             setExam({ ...examData, mapelNama, guruNama, kelasNama }); 
 
             const submissionsQuery = query(
-                collection(db, "student's_answer"),
+                collection(db, "students_answers"),
                 where("latihan_ref", "==", examRef)
             );
 

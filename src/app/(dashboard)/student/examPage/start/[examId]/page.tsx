@@ -209,7 +209,7 @@ const StudentExamStartPage = () => {
 
             // Cek 4: Apakah siswa sudah pernah mengerjakan?
             const submissionQuery = query(
-                collection(db, "student's_answer"),
+                collection(db, "students_answers"),
                 where("latihan_ref", "==", examRef),
                 where("student_ref", "==", studentRef),
                 limit(1)
@@ -306,7 +306,7 @@ const StudentExamStartPage = () => {
                 nilai_esai: null
             };
 
-            const docRef = await addDoc(collection(db, "student's_answer"), submissionData);
+            const docRef = await addDoc(collection(db, "students_answers"), submissionData);
             setCurrentSubmissionId(docRef.id);
             setPageStatus("inProgress"); // Mulai!
 
@@ -365,7 +365,7 @@ const StudentExamStartPage = () => {
             }
 
             // Update dokumen student's_answer
-            const submissionRef = doc(db, "student's_answer", currentSubmissionId);
+            const submissionRef = doc(db, "students_answers", currentSubmissionId);
             await updateDoc(submissionRef, {
                 status: "dikerjakan",
                 waktu_selesai: serverTimestamp(),
