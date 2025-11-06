@@ -18,7 +18,7 @@ export default function AdminLayout({
     // Tampilkan UI loading sementara data user diperiksa
     return (
       <div className="flex justify-center items-center h-screen">
-        <div>Memeriksa otorisasi...</div>
+        <div>Memeriksa otorisasi.....</div>
       </div>
     );
   }
