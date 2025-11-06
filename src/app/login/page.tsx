@@ -244,7 +244,7 @@ const getUserDataFromFirestore = async (uid: string): Promise<UserData | null> =
                   <div>
                     <h3 className="font-semibold text-sm sm:text-base text-gray-900">Pembelajaran Adaptif</h3>
                     <p className="text-gray-700 text-xs">
-                      Sistem menyesuaikan materi dan kecepatan belajar dengan kemampuan unik setiap siswa.
+                      Sistem menyesuaikan Materi dan kecepatan belajar dengan kemampuan unik setiap siswa.
                     </p>
                   </div>
                 </div>
