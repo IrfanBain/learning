@@ -8,8 +8,8 @@ import { Toaster } from "react-hot-toast";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "E-Learning MTs Al-Khairiyah",
-  description: "Platform pembelajaran online resmi untuk siswa dan guru MTs Al-Khairiyah Tanjung Wangi Lampung Timur.",
+  title: "E-Learning MTs Al-Khairiyah | Waway Karya, Tanjung Wangi",
+  description: "Sistem pembelajaran online resmi untuk siswa dan guru di MTs Al-Khairiyah Tanjung Wangi Lampung Timur. Platform ini menyediakan akses mudah ke latihan, tugas, dan ujian.",
 };
 
 export default function RootLayout({

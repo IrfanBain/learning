@@ -13,8 +13,6 @@ const nextConfig = {
       },
       {
         protocol: 'https',
-        // Ganti hostname ini dengan hostname dari URL R2 Anda
-        // (Berdasarkan error Anda, ini adalah hostname-nya)
         hostname: 'pub-959fbdae8a654ba09b1992c567c1c826.r2.dev', 
         port: '',
         pathname: '/**', // Izinkan semua path file (misal: /students/...)
