@@ -9,7 +9,7 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "E-Learning MTs Al-Khairiyah",
-  description: "Sistem Informasi Pembelajaran Online Al-Khairiyah",
+  description: "Platform pembelajaran online resmi untuk siswa dan guru MTs Al-Khairiyah Tanjung Wangi Lampung Timur.",
 };
 
 export default function RootLayout({
