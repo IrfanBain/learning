@@ -33,7 +33,7 @@ interface UserData {
 
 const UserProfile = () => {
   const [isEditing, setIsEditing] = useState<boolean>(false);
-  const [profileImage, setProfileImage] = useState<string>("/setProfile.png");
+  const [profileImage, setProfileImage] = useState<string>("/placeholder-avatar.png");
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   
