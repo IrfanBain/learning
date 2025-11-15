@@ -121,7 +121,11 @@ const menuItems = [
       {
         icon: "/profile.png",
         label: "Profil",
-        href: "/profile",
+        getHref: (role: string | null) => { 
+          if (role === 'teacher') return '/profile/guru'; 
+          if (role === 'student') return '/profile/siswa';
+          return '/'; 
+      },
         visible: [ "teacher", "student",],
       },
       // {
@@ -162,7 +166,7 @@ const Menu = () => {
   }
   const currentRole = user?.role;
   return (
-    <div className="mt-4 text-sm">
+    <div className="mt-4 text-sm ">
       {menuItems.map((i) => (
         <div className="flex flex-col gap-2" key={i.title}>
           <span className="hidden lg:block text-gray-400 font-light my-4">

@@ -80,7 +80,7 @@ export default function CreateUserModal({ isOpen, onClose, onUserCreated }: Crea
       {/* Konten Modal */}
       <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4">
         <div className="flex justify-between items-center border-b p-4">
-          <h3 className="text-xl font-semibold">Tambah Pengguna Baru</h3>
+          <h3 className="text-xl font-semibold">Tambah Pengguna Admin Baru</h3>
           <button 
             onClick={handleClose} 
             className="text-gray-400 hover:text-gray-600"
@@ -111,19 +111,7 @@ export default function CreateUserModal({ isOpen, onClose, onUserCreated }: Crea
               className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
-          
-          <div>
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700">NISN / NIP</label>
-            <input
-              type="text"
-              id="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-              className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-          
+
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
             <input
@@ -135,6 +123,20 @@ export default function CreateUserModal({ isOpen, onClose, onUserCreated }: Crea
               className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
+
+          <div>
+            <label htmlFor="username" className="block text-sm font-medium text-gray-700">Username</label>
+            <input
+              type="text"
+              id="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+              className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          
+          
 
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</label>
@@ -158,8 +160,8 @@ export default function CreateUserModal({ isOpen, onClose, onUserCreated }: Crea
               required
               className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             >
-              <option value="student">Siswa</option>
-              <option value="teacher">Guru</option>
+              {/* <option value="student">Siswa</option>
+              <option value="teacher">Guru</option> */}
               <option value="admin">Admin</option>
             </select>
           </div>

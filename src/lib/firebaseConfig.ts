@@ -25,7 +25,7 @@ const db: Firestore = getFirestore(app);
 
 // --- Layanan KHUSUS Client-Side (Penyebab Error Anda) ---
 // Kita akan buat "getter" agar tidak langsung dipanggil di server
-
+let auth: Auth;
 let authInstance: Auth | null = null;
 let storageInstance: FirebaseStorage | null = null;
 let analyticsInstance: Analytics | null = null;
@@ -81,6 +81,8 @@ export const getClientAnalytics = (): Analytics | null => {
   return null;
 };
 
+auth = getAuth(app);
+
 // Ekspor app dan db (ini aman)
-export { app, db };
+export { app, db, auth };
 
