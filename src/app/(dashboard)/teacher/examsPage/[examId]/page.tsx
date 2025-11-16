@@ -13,7 +13,9 @@ import {
     addDoc, 
     deleteDoc,
     updateDoc,
-    serverTimestamp, 
+    serverTimestamp,
+    where,
+    writeBatch, 
     DocumentReference,
     Timestamp,
     increment 
@@ -47,7 +49,7 @@ interface ExamData {
 // ... (tidak berubah)
     id: string;
     judul: string;
-    tipe: "Pilihan Ganda" | "Esai" | "Tugas (Upload File)";
+    tipe: "Pilihan Ganda" | "Esai" | "Tugas (Upload File)" | "Esai Uraian";
     mapel_ref: DocumentReference;
     kelas_ref: DocumentReference;
     jumlah_soal: number;
@@ -61,10 +63,11 @@ interface SoalData {
     urutan: number;
     pertanyaan: string;
     poin: number;
-    tipe_soal: "Pilihan Ganda" | "Esai";
+    tipe_soal: "Pilihan Ganda" | "Esai" | "Esai Uraian";
     opsi?: { [key: string]: string }; 
     kunci_jawaban?: string; 
-    rubrik_penilaian?: string; 
+    rubrik_penilaian?: string;
+    jumlah_input?: number; 
 }
 
 type SoalFormData = {
@@ -77,6 +80,7 @@ type SoalFormData = {
     opsiD: string;
     kunci_jawaban: "A" | "B" | "C" | "D";
     rubrik_penilaian: string;
+    jumlah_input?: number;
 }
 
 const initialFormData: SoalFormData = {
@@ -89,6 +93,7 @@ const initialFormData: SoalFormData = {
     opsiD: "",
     kunci_jawaban: "A",
     rubrik_penilaian: "",
+    jumlah_input: 3,
 };
 
 // --- BARU: Helper function untuk konversi Timestamp ke format input datetime-local ---
@@ -132,6 +137,7 @@ const TeacherExamManagePage = () => {
     const [isEditingDeadline, setIsEditingDeadline] = useState(false);
     const [newDeadline, setNewDeadline] = useState("");
     const [deadlineLoading, setDeadlineLoading] = useState(false);
+    const [editingSoal, setEditingSoal] = useState<SoalData | null>(null);
 
     const examDocRef = useMemo(() => doc(db, "exams", examId), [examId]);
 
@@ -144,7 +150,7 @@ const TeacherExamManagePage = () => {
         try {
             const docSnap = await getDoc(examDocRef);
             if (!docSnap.exists()) {
-                throw new Error("Latihan/Ujian tidak ditemukan.");
+                throw new Error("Ujian tidak ditemukan.");
             }
 
             const docData = docSnap.data() as ExamData;
@@ -161,7 +167,7 @@ const TeacherExamManagePage = () => {
                     });
                     currentStatus = "Ditutup"; 
                     docData.status = "Ditutup"; 
-                    toast("Latihan ini otomatis ditutup karena telah melewati deadline.", {
+                    toast("Ujian ini otomatis ditutup karena telah melewati deadline.", {
                         icon: <Check className="text-green-500" />
                     });
                 }
@@ -228,7 +234,7 @@ const TeacherExamManagePage = () => {
         if (!examData) return;
 
         if (examData.status !== 'Draft') {
-            toast.error("Tidak bisa menambah soal. Latihan sudah dipublikasi.");
+            toast.error("Tidak bisa menambah soal. Ujian sudah dipublikasi.");
             return;
         }
 
@@ -240,7 +246,7 @@ const TeacherExamManagePage = () => {
             urutan: nextUrutan,
             pertanyaan: formData.pertanyaan,
             poin: formData.poin,
-            tipe_soal: examData.tipe === 'Pilihan Ganda' ? 'Pilihan Ganda' : 'Esai',
+            tipe_soal: examData.tipe === 'Pilihan Ganda' ? 'Pilihan Ganda' : examData.tipe === 'Esai Uraian' ? 'Esai Uraian' : 'Esai',
         };
         
         if (examData.tipe === 'Pilihan Ganda') {
@@ -256,9 +262,17 @@ const TeacherExamManagePage = () => {
                 D: formData.opsiD,
             };
             newSoalData.kunci_jawaban = formData.kunci_jawaban;
-        } else {
+        } else if (examData.tipe === 'Esai') {
+newSoalData.rubrik_penilaian = formData.rubrik_penilaian;
+} else if (examData.tipe === 'Esai Uraian') {
+if (!formData.jumlah_input || formData.jumlah_input < 1) {
+ toast.error("Jumlah input minimal harus 1.");
+setFormLoading(false);
+ return;
+ }
             newSoalData.rubrik_penilaian = formData.rubrik_penilaian;
-        }
+ newSoalData.jumlah_input = formData.jumlah_input;
+ }
 
         try {
             const soalCollectionRef = collection(db, "exams", examId, "soal");
@@ -280,6 +294,130 @@ const TeacherExamManagePage = () => {
             setFormLoading(false);
         }
     };
+
+    const handleUpdateSoal = async (e: React.FormEvent) => {
+e.preventDefault();
+ if (!editingSoal || !examData) return; // Pastikan kita dalam mode edit
+
+if (examData.status !== 'Draft') {
+ toast.error("Tidak bisa menyimpan perubahan. Ujian sudah dipublikasi.");
+ return;
+ }
+
+ setFormLoading(true);
+
+ let updatedSoalData: any = {
+ // 'urutan' tidak perlu diubah
+ pertanyaan: formData.pertanyaan,
+ poin: formData.poin,
+ // 'tipe_soal' juga tidak berubah
+ };
+
+if (examData.tipe === 'Pilihan Ganda') {
+ if (!formData.opsiA || !formData.opsiB || !formData.opsiC || !formData.opsiD) {
+ toast.error("Semua 4 opsi jawaban harus diisi.");
+setFormLoading(false);
+ return;
+ }
+ updatedSoalData.opsi = {
+ A: formData.opsiA,
+B: formData.opsiB,
+ C: formData.opsiC,
+ D: formData.opsiD,
+ };
+ updatedSoalData.kunci_jawaban = formData.kunci_jawaban;
+ // Hapus rubrik jika terisi (untuk konsistensi data PG)
+ updatedSoalData.rubrik_penilaian = null; 
+ } else if (examData.tipe === 'Esai') {
+ updatedSoalData.rubrik_penilaian = formData.rubrik_penilaian;
+ // Hapus data lain
+ updatedSoalData.opsi = null; 
+ updatedSoalData.kunci_jawaban = null;
+ updatedSoalData.jumlah_input = null;
+ } else if (examData.tipe === 'Esai Uraian') {
+ if (!formData.jumlah_input || formData.jumlah_input < 1) {
+ toast.error("Jumlah input minimal harus 1.");
+ setFormLoading(false);
+ return;
+ }
+ updatedSoalData.jumlah_input = formData.jumlah_input;
+ // Hapus data lain
+ updatedSoalData.opsi = null; 
+ updatedSoalData.kunci_jawaban = null;
+ updatedSoalData.rubrik_penilaian = formData.rubrik_penilaian;;
+ }
+
+ try {
+            // Gunakan updateDoc, bukan addDoc
+ const soalDocRef = doc(db, "exams", examId, "soal", editingSoal.id);
+ await updateDoc(soalDocRef, updatedSoalData);
+
+ toast.success(`Soal nomor ${editingSoal.urutan} berhasil diperbarui!`);
+
+ fetchSoalList(); // Refresh daftar soal di kanan
+ handleCancelEdit(); // Reset form kembali ke mode "Tambah"
+
+ } catch (err: any) {
+console.error("Error updating question:", err);
+toast.error(err.message || "Gagal memperbarui soal.");
+} finally {
+setFormLoading(false);
+ }
+ };
+
+    // --- BARU: Fungsi untuk membatalkan mode edit ---
+ const handleCancelEdit = () => {
+setEditingSoal(null);
+setFormData(initialFormData); // Reset form ke kondisi awal
+};
+
+    // --- BARU: Fungsi untuk MEMULAI mode edit ---
+const handleStartEdit = (soal: SoalData) => {
+if (examData?.status !== 'Draft') {
+ toast.error("Hanya bisa mengedit soal dalam mode Draft.");
+ return;
+ }
+        
+        setEditingSoal(soal); // Set soal yang aktif diedit
+        
+        // Isi form di kiri dengan data soal yang dipilih
+        if (soal.tipe_soal === 'Pilihan Ganda' && soal.opsi) {
+            setFormData({
+                pertanyaan: soal.pertanyaan,
+                poin: soal.poin,
+                opsiA: soal.opsi['A'] || "",
+                opsiB: soal.opsi['B'] || "",
+                opsiC: soal.opsi['C'] || "",
+                opsiD: soal.opsi['D'] || "",
+                kunci_jawaban: (soal.kunci_jawaban as "A" | "B" | "C" | "D") || "A",
+                rubrik_penilaian: "", // Kosongkan rubrik untuk PG
+            });
+        } else if (soal.tipe_soal === 'Esai') { // Esai Biasa
+            setFormData({
+                pertanyaan: soal.pertanyaan,
+                poin: soal.poin,
+                opsiA: "", opsiB: "", opsiC: "", opsiD: "",
+                kunci_jawaban: "A",
+                rubrik_penilaian: soal.rubrik_penilaian || "",
+                jumlah_input: 1, // Reset ke default
+            });
+        } else if (soal.tipe_soal === 'Esai Uraian') {
+            setFormData({
+                pertanyaan: soal.pertanyaan,
+                poin: soal.poin,
+                opsiA: "", opsiB: "", opsiC: "", opsiD: "",
+                kunci_jawaban: "A",
+ rubrik_penilaian: soal.rubrik_penilaian || "", // Reset ke default
+                jumlah_input: soal.jumlah_input || 1, // Isi dari data soal
+            });
+        }
+
+        // Scroll ke atas agar form terlihat (opsional tapi bagus)
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        toast("Mode edit aktif. Silakan ubah soal di formulir.", {
+            icon: <Edit2 className="text-blue-500" />
+        });
+    };
     
     const executeDelete = async (soalId: string, urutan: number) => {
     // ... (tidak berubah)
@@ -288,7 +426,26 @@ const TeacherExamManagePage = () => {
             const soalDocRef = doc(db, "exams", examId, "soal", soalId);
             await deleteDoc(soalDocRef);
             await updateDoc(examDocRef, { jumlah_soal: increment(-1) });
-            
+            const soalCollectionRef = collection(db, "exams", examId, "soal");
+            const q = query(soalCollectionRef, where("urutan", ">", urutan));
+            
+            const querySnapshot = await getDocs(q);
+            
+            if (!querySnapshot.empty) {
+                // 2. Gunakan batch write untuk update semua sekaligus
+                const batch = writeBatch(db);
+                
+                querySnapshot.forEach((doc) => {
+                    // Kurangi 'urutan' dengan 1
+                    batch.update(doc.ref, { urutan: increment(-1) });
+                });
+                
+                // 3. Commit batch
+                await batch.commit();
+                
+            } else {
+               
+            }
             toast.success(`Soal nomor ${urutan} berhasil dihapus.`, { id: loadingToastId });
             
             fetchSoalList(); 
@@ -354,7 +511,7 @@ const TeacherExamManagePage = () => {
         if (!examData) return;
 
         if (newStatus === "Dipublikasi" && examData.jumlah_soal === 0) {
-            toast.error("Tidak bisa mempublikasi latihan dengan 0 soal.", {
+            toast.error("Tidak bisa mempublikasi Ujian dengan 0 soal.", {
                 icon: <AlertTriangle className="text-red-500" />
             });
             return;
@@ -371,7 +528,7 @@ const TeacherExamManagePage = () => {
                         Konfirmasi Perubahan Status
                     </p>
                     <p className="text-sm text-gray-600">
-                        Anda yakin ingin {actionText} latihan ini?
+                        Anda yakin ingin {actionText} Ujian ini?
                     </p>
                     <div className="flex gap-2 justify-end">
                         <button
@@ -393,7 +550,7 @@ const TeacherExamManagePage = () => {
                                     await updateDoc(examDocRef, {
                                         status: newStatus
                                     });
-                                    toast.success(`Latihan berhasil ${actionText}!`, { id: loadingToastId });
+                                    toast.success(`Ujian berhasil ${actionText}!`, { id: loadingToastId });
                                     fetchExamData(); 
                                 } catch (err: any) {
                                     console.error("Error changing status:", err);
@@ -495,7 +652,7 @@ const TeacherExamManagePage = () => {
                     onClick={() => router.back()} 
                     className="flex items-center gap-2 text-blue-600 hover:text-blue-800 mb-4">
                     <ArrowLeft className="w-5 h-5" />
-                    Kembali ke Daftar Latihan
+                    Kembali ke Daftar Ujian
                 </button>
                 <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative h-60 flex flex-col justify-center items-center" role="alert">
                     <strong className="font-bold text-xl">Error!</strong>
@@ -507,7 +664,7 @@ const TeacherExamManagePage = () => {
 
     if (!examData) {
     // ... (tidak berubah)
-        return <div className="p-8 text-center text-gray-500">Data latihan tidak ditemukan.</div>;
+        return <div className="p-8 text-center text-gray-500">Data Ujian tidak ditemukan.</div>;
     }
 
     if (examData.tipe === "Tugas (Upload File)") {
@@ -518,11 +675,11 @@ const TeacherExamManagePage = () => {
                     onClick={() => router.back()}
                     className="flex items-center gap-2 text-blue-600 hover:text-blue-800 mb-4">
                     <ArrowLeft className="w-5 h-5" />
-                    Kembali ke Daftar Latihan
+                    Kembali ke Daftar Ujian
                 </button>
                 <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100 mb-6">
                      <h1 className="text-2xl font-bold text-gray-800">{examData.judul}</h1>
-                     <p className="text-lg text-gray-600 mt-2">Ini adalah latihan tipe **Tugas (Upload File)**.</p>
+                     <p className="text-lg text-gray-600 mt-2">Ini adalah Ujian tipe **Tugas (Upload File)**.</p>
                      <p className="text-gray-500 mb-4">Tidak ada penambahan soal Pilihan Ganda atau Esai untuk tipe ini.</p>
                      {/* --- MODIFIKASI: Kirim props baru ke panel --- */}
                      <StatusAksiPanel 
@@ -548,7 +705,7 @@ const TeacherExamManagePage = () => {
                 onClick={() => router.back()}
                 className="flex items-center gap-2 text-blue-600 hover:text-blue-800 mb-4">
                 <ArrowLeft className="w-5 h-5" />
-                Kembali ke Daftar Latihan
+                Kembali ke Daftar Ujian
             </button>
             
             <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100 mb-6">
@@ -585,29 +742,32 @@ const TeacherExamManagePage = () => {
                 <div className="w-full lg:w-1/3">
                     <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100 sticky top-6">
                         {examData.status !== 'Draft' ? (
-    // ... (tidak berubah)
+
                             <div className={`p-4 border-l-4 rounded-md mb-4 ${
                                 examData.status === 'Dipublikasi' ? 'bg-yellow-50 border-yellow-400 text-yellow-800' : 'bg-red-50 border-red-400 text-red-800'
                             }`}>
                                 <div className="flex items-center gap-2">
                                     {examData.status === 'Dipublikasi' ? <AlertTriangle className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
                                     <span className="font-semibold">
-                                        {examData.status === 'Dipublikasi' ? 'Latihan Dipublikasi' : 'Latihan Ditutup'}
+                                        {examData.status === 'Dipublikasi' ? 'Ujian Dipublikasi' : 'Ujian Ditutup'}
                                     </span>
                                 </div>
                                 <p className="text-sm mt-1">
                                     {examData.status === 'Dipublikasi' 
                                         ? 'Kembalikan ke Draft jika Anda ingin menambah atau mengedit soal.'
-                                        : 'Latihan ini sudah ditutup dan tidak dapat diubah lagi.'}
+                                        : 'Ujian ini sudah ditutup dan tidak dapat diubah lagi.'}
                                 </p>
                             </div>
                         ) : (
                             <h2 className="text-xl font-semibold text-gray-800 mb-4">
-                                Tambah Soal Baru (Nomor {soalList.length + 1})
+                                {editingSoal 
+ ? `Edit Soal Nomor ${editingSoal.urutan}` 
+ : `Tambah Soal Baru (Nomor ${soalList.length + 1})`
+ }
                             </h2>
                         )}
                         
-                        <form onSubmit={handleAddSoal} className="space-y-4">
+                        <form onSubmit={editingSoal ? handleUpdateSoal : handleAddSoal} className="space-y-4">
                             <div>
                                 <label htmlFor="pertanyaan" className="block text-sm font-medium text-gray-700 mb-1">Pertanyaan <span className="text-red-500">*</span></label>
                                 <textarea
@@ -692,20 +852,73 @@ const TeacherExamManagePage = () => {
                                     </div>
                                 </div>
                             )}
+
+                            {/* --- BARU: BLOK UNTUK ESAI URAIAN --- */}
+                            {examData.tipe === "Esai Uraian" && (
+                                <div className="space-y-3 border-t mt-4">
+                                <h3 className="text-md font-semibold text-gray-700">Pengaturan Soal Uraian</h3>
+                                <div>
+                                        <label htmlFor="rubrik_penilaian" className="block text-sm font-medium text-gray-700 mb-1">Rubrik / Kunci Jawaban Esai (opsional)</label>
+                                        <textarea
+                                            id="rubrik_penilaian"
+                                            name="rubrik_penilaian"
+                                            value={formData.rubrik_penilaian}
+                                            onChange={handleFormChange}
+                                            rows={3}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md disabled:bg-gray-100"
+                                            placeholder="Tuliskan pedoman penilaian atau kunci jawaban untuk esai ini..."
+                                            disabled={examData.status !== 'Draft'} 
+                                        ></textarea>
+                                    </div>
+                                <div>
+                                <label htmlFor="jumlah_input" className="block text-sm font-medium text-gray-700 mb-1">Jumlah Input Jawaban <span className="text-red-500">*</span></label>
+                                <input
+                                type="number"
+                                id="jumlah_input"
+                                name="jumlah_input"
+                                value={formData.jumlah_input}
+                                onChange={handleFormChange}
+                                min="1"
+                                max="20" // Batasi agar tidak terlalu banyak
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                                required
+                                disabled={examData.status !== 'Draft'} />
+                                <p className="text-xs text-gray-500 mt-1">Siswa akan melihat sejumlah input ini (misal: 5).</p>
+                                </div>
+                                </div>
+                            )}
                             
-                            <div className="pt-2">
+                            <div className="pt-2 flex flex-col sm:flex-row gap-3">
                                 <button
                                     type="submit"
                                     disabled={formLoading || examData.status !== 'Draft'}
-                                    className="w-full flex items-center justify-center gap-2 py-2 px-4 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className={`w-full flex items-center justify-center gap-2 py-2 px-4 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed ${editingSoal
+                                        ? 'bg-blue-600 hover:bg-blue-700'
+                                        : 'bg-green-600 hover:bg-green-700' 
+
+                                    }
+                                    ${
+                                        editingSoal ? 'sm:w-2/3' : 'sm:w-full' 
+                                    }`}
+                                    
                                 >
                                     {formLoading ? (
                                         <Loader2 className="w-5 h-5 animate-spin" />
                                     ) : (
-                                        <Plus className="w-5 h-5" />
+                                        editingSoal ? <Save className="w-5 h-5" /> : <Plus className="w-5 h-5" />
                                     )}
-                                    <span>Tambah Soal</span>
+                                    <span>{editingSoal ? 'Simpan Perubahan' : 'Tambah Soal'}</span>
                                 </button>
+                                {editingSoal && (
+                                <button
+                                    type="button" // PENTING: type="button" agar tidak submit form
+                                    onClick={handleCancelEdit}
+                                    disabled={formLoading}
+                                    className="w-full sm:w-1/3 flex items-center justify-center gap-2 py-2 px-4 bg-gray-200 text-gray-800 font-semibold rounded-lg shadow-sm hover:bg-gray-300 disabled:opacity-50">
+                                    <X className="w-5 h-5" />
+                                    Batal
+                                </button>
+                                )}
                             </div>
                         </form>
                     </div>
@@ -733,7 +946,8 @@ const TeacherExamManagePage = () => {
                                     <SoalListItem 
                                         key={soal.id} 
                                         soal={soal} 
-                                        onDelete={handleDeleteSoal} 
+                                        onDelete={handleDeleteSoal}
+                                        onEdit={handleStartEdit} 
                                         isDisabled={examData.status !== 'Draft'}
                                     />
                                 ))}
@@ -830,7 +1044,7 @@ const StatusAksiPanel = ({
                 </div>
             );
             buttonUI = (
-                <p className="text-sm text-red-700">Latihan ini sudah ditutup dan tidak bisa diubah lagi.</p>
+                <p className="text-sm text-red-700">Ujian ini sudah ditutup dan tidak bisa diubah lagi.</p>
             );
             break;
     }
@@ -845,17 +1059,17 @@ const StatusAksiPanel = ({
                     {statusUI}
                     {examData.status === 'Draft' && (
                         <p className="text-sm text-gray-500 mt-1">
-                            Siswa belum dapat melihat latihan ini.
+                            Siswa belum dapat melihat Ujian ini.
                         </p>
                     )}
                     {examData.status === 'Dipublikasi' && (
                         <p className="text-sm text-gray-500 mt-1">
-                            Siswa sudah dapat melihat dan mengerjakan latihan ini.
+                            Siswa sudah dapat melihat dan mengerjakan Ujian ini.
                         </p>
                     )}
                     {examData.status === 'Ditutup' && (
                         <p className="text-sm text-gray-500 mt-1">
-                            Latihan telah ditutup dan tidak bisa dikerjakan lagi.
+                            Ujian telah ditutup dan tidak bisa dikerjakan lagi.
                         </p>
                     )}
                 </div>
@@ -923,10 +1137,11 @@ const StatusAksiPanel = ({
 }
 
 
-const SoalListItem = ({ soal, onDelete, isDisabled }: { 
+const SoalListItem = ({ soal, onDelete, onEdit, isDisabled }: { 
 // ... (tidak berubah)
     soal: SoalData, 
     onDelete: (soalId: string, urutan: number) => void,
+    onEdit: (soal: SoalData) => void,
     isDisabled: boolean 
 }) => {
     
@@ -944,6 +1159,13 @@ const SoalListItem = ({ soal, onDelete, isDisabled }: {
                     </span>
                 </div>
                 <div className="flex items-center gap-2">
+                    <button 
+                        onClick={() => onEdit(soal)} // Panggil onEdit dengan data soal
+                        className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 font-medium disabled:text-gray-400 disabled:cursor-not-allowed"
+                        disabled={isDisabled} // Tombol ini juga akan disable jika status bukan draft
+                        >
+                        <Edit2 className="w-4 h-4" /> Edit
+                    </button>
                     <button 
                         onClick={() => onDelete(soal.id, soal.urutan)}
                         className="flex items-center gap-1 text-sm text-red-500 hover:text-red-700 font-medium disabled:text-gray-400 disabled:cursor-not-allowed"
@@ -987,6 +1209,22 @@ const SoalListItem = ({ soal, onDelete, isDisabled }: {
                         <p className="text-blue-700 whitespace-pre-wrap">{soal.rubrik_penilaian}</p>
                     </div>
                 )}
+                {soal.tipe_soal === 'Esai Uraian' && (
+<div className="text-sm mt-2 p-3 bg-purple-50 border-l-4 border-purple-400 rounded-r-md">
+ 
+ {/* Tampilkan Rubrik jika ada */}
+ {soal.rubrik_penilaian && (
+<>
+ <p className="font-semibold text-purple-800">Rubrik/Kunci Jawaban:</p>
+<p className="text-purple-700 whitespace-pre-wrap mb-2">{soal.rubrik_penilaian}</p>
+</>
+ )}
+
+{/* Tampilkan Jumlah Input */}
+ <p className="font-semibold text-purple-800">Jumlah input jawaban: <strong>{soal.jumlah_input || 'N/A'}</strong></p>
+
+ </div>
+)}
             </div>
         </div>
     );

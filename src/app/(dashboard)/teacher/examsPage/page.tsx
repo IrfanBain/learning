@@ -35,7 +35,7 @@ interface ExamDoc {
     id: string;
     judul: string;
     deskripsi: string;
-    tipe: "Pilihan Ganda" | "Esai" | "Tugas (Upload File)";
+    tipe: "Pilihan Ganda" | "Esai" | "Esai Uraian";
     mapel_ref: DocumentReference;
     kelas_ref: DocumentReference;
     guru_ref: DocumentReference;
@@ -51,7 +51,7 @@ interface ExamDoc {
 type ExamFormData = {
     judul: string;
     deskripsi: string;
-    tipe: "Pilihan Ganda" | "Esai" | "Tugas (Upload File)";
+    tipe: "Pilihan Ganda" | "Esai" | "Esai Uraian";
     mapel_ref: string; // Akan menyimpan ID (string) dari dropdown
     kelas_ref: string; // Akan menyimpan ID (string) dari dropdown
     tanggal_selesai: string; // Akan menyimpan string tanggal-waktu
@@ -119,7 +119,7 @@ const TeacherExamPage = () => {
         }
     }, [availableMapel, availableKelas]); // Dependensi agar tidak fetch ulang
 
-    // Fungsi untuk mengambil daftar latihan yang sudah ada
+    // Fungsi untuk mengambil daftar Ujian yang sudah ada
     const fetchExamList = useCallback(async (userUid: string) => {
         setLoading(true);
         setError(null);
@@ -185,11 +185,11 @@ const TeacherExamPage = () => {
 
         } catch (err: any) {
             console.error("Error fetching exam list:", err);
-            setError("Gagal memuat daftar latihan. " + err.message);
+            setError("Gagal memuat daftar Ujian. " + err.message);
             if (err.code === 'permission-denied') {
                 setError("Gagal memuat: Periksa Security Rules untuk koleksi 'exams'.");
             }
-            toast.error("Gagal memuat daftar latihan.");
+            toast.error("Gagal memuat daftar Ujian.");
         } finally {
             setLoading(false);
         }
@@ -223,7 +223,7 @@ const TeacherExamPage = () => {
     const handleFormSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!user) {
-            toast.error("Anda harus login untuk membuat latihan.");
+            toast.error("Anda harus login untuk membuat Ujian.");
             return;
         }
 
@@ -253,7 +253,7 @@ const TeacherExamPage = () => {
             // Simpan ke Firestore
             const docRef = await addDoc(collection(db, "exams"), examDataToSave);
             
-            toast.success("Info Latihan Berhasil Disimpan!", {
+            toast.success("Info Ujian Berhasil Disimpan!", {
                 duration: 3000, // 2 detik
             });
             setTimeout(() => {
@@ -261,7 +261,7 @@ const TeacherExamPage = () => {
             }, 1000);
         } catch (err: any) {
             console.error("Error creating exam:", err);
-            toast.error(err.message || "Gagal menyimpan latihan.");
+            toast.error(err.message || "Gagal menyimpan Ujian.");
             setError(err.message);
         } finally {
             setFormLoading(false);
@@ -276,7 +276,7 @@ return (
             {/* RESPONSIF: Dibuat flex-col di HP, dan sm:flex-row di layar lebih besar */}
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4 sm:gap-0">
                 {/* RESPONSIF: Ukuran font diubah di HP */}
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Manajemen Latihan & Ujian</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Manajemen Ujian</h1>
                 
                 {/* Tombol Ganti Tampilan */}
                 {/* RESPONSIF: Dibuat flex-col di HP, dan sm:flex-row di layar lebih besar */}
@@ -291,7 +291,7 @@ return (
                         }`}
                     >
                         <List className="w-5 h-5" />
-                        <span>Daftar Latihan</span>
+                        <span>Daftar Ujian</span>
                     </button>
                     <button
                         onClick={() => setView('create')}
@@ -303,7 +303,7 @@ return (
                         }`}
                     >
                         <PlusSquare className="w-5 h-5" />
-                        <span>Buat Latihan Baru</span>
+                        <span>Buat Ujian Baru</span>
                     </button>
                 </div>
             </div>
@@ -316,20 +316,20 @@ return (
                 </div>
             )}
 
-            {/* Tampilan Daftar Latihan */}
+            {/* Tampilan Daftar Ujian */}
             {view === 'list' && (
                 <div className="bg-white p-4 sm:p-6 rounded-xl shadow-md border border-gray-100">
-                    <h2 className="text-xl font-semibold text-gray-800 mb-4">Daftar Latihan Dibuat</h2>
+                    <h2 className="text-xl font-semibold text-gray-800 mb-4">Daftar Ujian Dibuat</h2>
                     {loading ? (
                         <div className="flex justify-center items-center h-60">
                             <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-                            <span className="ml-3 text-gray-600">Memuat data latihan...</span>
+                            <span className="ml-3 text-gray-600">Memuat data Ujian...</span>
                         </div>
                     ) : examList.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-60 text-gray-500">
                             <FileText className="w-16 h-16 text-gray-300" />
-                            <h3 className="text-xl font-semibold mt-4">Belum Ada Latihan</h3>
-                            <p className="text-center">Klik tombol Buat Latihan Baru untuk memulai.</p>
+                            <h3 className="text-xl font-semibold mt-4">Belum Ada Ujian</h3>
+                            <p className="text-center">Klik tombol Buat Ujian Baru untuk memulai.</p>
                         </div>
                     ) : (
                         <div className="space-y-3">
@@ -341,14 +341,14 @@ return (
                 </div>
             )}
 
-            {/* Tampilan Form Buat Latihan Baru */}
+            {/* Tampilan Form Buat Ujian Baru */}
             {view === 'create' && (
                 // (Form ini sudah responsif karena menggunakan md:grid-cols-2)
                 <div className="bg-white p-4 sm:p-6 rounded-xl shadow-md border border-gray-100">
-                    <h2 className="text-xl font-semibold text-gray-800 mb-4">Buat Latihan Baru (Informasi Umum)</h2>
+                    <h2 className="text-xl font-semibold text-gray-800 mb-4">Buat Ujian Baru (Informasi Umum)</h2>
                     <p className="text-sm text-gray-500 mb-6">
                         <AlertTriangle className="w-4 h-4 inline-block mr-2 text-yellow-500" />
-                        Anda akan membuat sampul latihannya terlebih dahulu. Soal-soal akan ditambahkan di langkah berikutnya (di halaman edit).
+                        Anda akan membuat sampul Ujiannya terlebih dahulu. Soal-soal akan ditambahkan di langkah berikutnya (di halaman edit).
                     </p>
                     
                     <form onSubmit={handleFormSubmit} className="space-y-4">
@@ -356,7 +356,7 @@ return (
                             {/* Kolom Kiri */}
                             <div className="space-y-4">
                                 <div>
-                                    <label htmlFor="judul" className="block text-sm font-medium text-gray-700 mb-1">Judul Latihan / Ujian <span className="text-red-500">*</span></label>
+                                    <label htmlFor="judul" className="block text-sm font-medium text-gray-700 mb-1">Judul Ujian <span className="text-red-500">*</span></label>
                                     <input
                                         type="text"
                                         id="judul"
@@ -364,12 +364,12 @@ return (
                                         value={formData.judul}
                                         onChange={handleFormChange}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                                        placeholder="Contoh: Ulangan Harian 1: Aljabar"
+                                        placeholder="Contoh: Ujian tengah semester matematika"
                                         required
                                     />
                                 </div>
                                 <div>
-                                    <label htmlFor="tipe" className="block text-sm font-medium text-gray-700 mb-1">Tipe Latihan <span className="text-red-500">*</span></label>
+                                    <label htmlFor="tipe" className="block text-sm font-medium text-gray-700 mb-1">Tipe Ujian <span className="text-red-500">*</span></label>
                                     <select
                                         id="tipe"
                                         name="tipe"
@@ -380,6 +380,7 @@ return (
                                     >
                                         <option value="Pilihan Ganda">Pilihan Ganda</option>
                                         <option value="Esai">Esai</option>
+                                        <option value="Esai Uraian">Esai Uraian</option>
                                         {/* <option value="Tugas (Upload File)">Tugas (Upload File)</option> */}
                                     </select>
                                 </div>
@@ -455,7 +456,7 @@ return (
                                         placeholder="Contoh: 90"
                                         required
                                     />
-                                    <p className="text-xs text-gray-500 mt-1">Isi 0 jika tidak ada batas waktu (misal: tugas upload).</p>
+                                    <p className="text-xs text-gray-500 mt-1">Isi 0 jika tidak ada batas waktu.</p>
                                 </div>
                             </div>
                         </div>
@@ -485,7 +486,7 @@ return (
 
 // --- KOMPONEN PENDUKUNG ---
 
-// Komponen kecil untuk menampilkan satu item latihan di daftar
+// Komponen kecil untuk menampilkan satu item Ujian di daftar
 const ExamListItem = ({ exam }: { exam: ExamDoc }) => {
     const getStatusChip = (status: string) => {
         switch (status) {
@@ -513,6 +514,7 @@ const ExamListItem = ({ exam }: { exam: ExamDoc }) => {
                 <div className="flex-shrink-0">
                     {exam.tipe === 'Pilihan Ganda' && <List className="w-6 h-6 text-blue-500" />}
                     {exam.tipe === 'Esai' && <FileText className="w-6 h-6 text-green-500" />}
+                    {exam.tipe === 'Esai Uraian' && <FileText className="w-6 h-6 text-purple-500" />}
                     {/* {exam.tipe === 'Tugas (Upload File)' && <FileText className="w-6 h-6 text-purple-500" />} */}
                 </div>
                 {/* Info */}
