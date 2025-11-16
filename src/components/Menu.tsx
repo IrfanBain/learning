@@ -52,7 +52,7 @@ const menuItems = [
       },
       {
         icon: "/exam.png",
-        label: "Latihan",
+        label: "Ujian",
         getHref: (role: string | null) => { 
           if (role === 'admin') return '/admin/examPage';
           if (role === 'teacher') return '/teacher/examsPage'; 

@@ -166,8 +166,8 @@ const StudentExamPage = () => {
                 setError(errorMsg);
                 toast.error("Error: Indeks Firestore tidak ada.");
             } else {
-                 setError(err.message || "Gagal memuat data latihan.");
-                 toast.error(err.message || "Gagal memuat data latihan.");
+                 setError(err.message || "Gagal memuat data Ujian.");
+                 toast.error(err.message || "Gagal memuat data Ujian.");
             }
         } finally {
             setLoading(false);
@@ -190,7 +190,7 @@ const StudentExamPage = () => {
         return (
             <div className="flex justify-center items-center h-[80vh] bg-gray-50">
                 <Loader2 className="w-12 h-12 animate-spin text-blue-600" />
-                <span className="ml-4 text-gray-600 text-lg">Memuat data latihan...</span>
+                <span className="ml-4 text-gray-600 text-lg">Memuat data Ujian...</span>
             </div>
         );
     }
@@ -198,7 +198,7 @@ const StudentExamPage = () => {
     return (
         <div className="p-4 sm:p-6 bg-gray-50 min-h-screen font-sans">
             
-            <h1 className="text-2xl font-bold text-gray-800">Latihan & Ujian</h1>
+            <h1 className="text-2xl font-bold text-gray-800">Ujian</h1>
             <p className="text-base text-gray-600 mt-1">
                 Selamat datang, <span className="font-semibold text-blue-600">{studentName || 'Siswa'}!</span>
             </p>
@@ -213,14 +213,14 @@ const StudentExamPage = () => {
             <section className="mt-6"> 
                 <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-3 mb-4">
                     <BookOpenCheck className="w-6 h-6 text-blue-600" /> 
-                    Latihan Tersedia
+                    Ujian Tersedia
                 </h2>
                 <div className="space-y-4">
                     {todoExams.length === 0 && !error && (
                         <div className="text-center text-gray-500 py-8 bg-white rounded-xl shadow-sm border border-gray-100">
                             <CheckCircle className="w-10 h-10 mx-auto text-green-500" /> 
-                            <p className="mt-3 text-base font-medium">Hore! Tidak ada latihan yang perlu dikerjakan.</p>
-                            <p className="text-sm text-gray-500">Semua latihan sudah selesai atau belum ada yang baru.</p>
+                            <p className="mt-3 text-base font-medium">Hore! Tidak ada Ujian yang perlu dikerjakan.</p>
+                            <p className="text-sm text-gray-500">Semua Ujian sudah selesai atau belum ada yang baru.</p>
                         </div>
                     )}
                     {todoExams.map(exam => (
@@ -232,12 +232,12 @@ const StudentExamPage = () => {
             <section className="mt-8"> 
                 <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-3 mb-4">
                     <History className="w-6 h-6 text-gray-600" /> 
-                    Riwayat Latihan
+                    Riwayat Ujian
                 </h2>
                 <div className="space-y-4">
                     {completedExams.length === 0 && !error && (
                          <div className="text-center text-gray-500 py-8 bg-white rounded-xl shadow-sm border border-gray-100">
-                            <p className="text-base font-medium">Belum ada riwayat latihan.</p>
+                            <p className="text-base font-medium">Belum ada riwayat Ujian.</p>
                         </div>
                     )}
                     {completedExams.map(exam => (
