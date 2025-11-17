@@ -13,7 +13,9 @@ import {
     doc,
     getDoc,
     Timestamp,
-    DocumentReference
+    DocumentReference,
+    addDoc,
+    serverTimestamp
 } from 'firebase/firestore';
 import { 
     Loader2, 
@@ -34,13 +36,14 @@ declare global {
     }
 }
 
-// Tipe untuk data Latihan (Exam)
+// Tipe untuk data Ujian (Exam)
 interface ExamData {
     judul: string;
     tipe: string;
     mapel_ref: DocumentReference;
     guru_ref: DocumentReference;
     kelas_ref: DocumentReference;
+    tanggal_selesai: Timestamp;
     mapelNama?: string;
     guruNama?: string;
     kelasNama?: string;
@@ -54,7 +57,7 @@ interface SubmissionData {
     status: string;
     nilai_akhir?: number; // Skor PG
     nilai_esai?: number;
-    waktu_selesai: Timestamp;
+    waktu_selesai: Timestamp | null;
     studentName?: string;
     studentNisn?: string;
 }
@@ -84,6 +87,7 @@ const ExamResultsPage = () => {
     
     const [librariesLoaded, setLibrariesLoaded] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
+    const [isCreatingSubmission, setIsCreatingSubmission] = useState(false);
 
     // Effect untuk memuat library export
     useEffect(() => {
@@ -130,7 +134,7 @@ const ExamResultsPage = () => {
             const examRef = doc(db, "exams", examId);
             const examSnap = await getDoc(examRef);
             if (!examSnap.exists()) {
-                throw new Error("Latihan tidak ditemukan.");
+                throw new Error("Ujian tidak ditemukan.");
             }
             const examData = examSnap.data() as ExamData;
 
@@ -145,49 +149,78 @@ const ExamResultsPage = () => {
 
             setExam({ ...examData, mapelNama, guruNama, kelasNama }); 
 
-            const submissionsQuery = query(
-                collection(db, "students_answers"),
-                where("latihan_ref", "==", examRef)
-            );
+            // --- LOGIKA BARU (Berbasis Siswa) ---
 
-            const submissionsSnapshot = await getDocs(submissionsQuery);
-            if (submissionsSnapshot.empty) {
-                setSubmissions([]);
-                setLoading(false);
-                return;
-            }
+            // 1. Ambil SEMUA siswa di kelas ini
+            const studentsQuery = query(
+                collection(db, "students"),
+                where("kelas_ref", "==", examData.kelas_ref)
+            );
+            const studentsSnapshot = await getDocs(studentsQuery);
 
-            const submissionsPromises = submissionsSnapshot.docs.map(async (subDoc) => {
-                const subData = subDoc.data() as SubmissionData;
-                
-                let studentName = "Siswa (Ref. Error)";
-                let studentNisn = ""; 
+            // 2. Ambil SEMUA submission untuk ujian ini
+            const submissionsQuery = query(
+                collection(db, "students_answers"),
+                where("latihan_ref", "==", examRef)
+            );
+            const submissionsSnapshot = await getDocs(submissionsQuery);
 
-                try {
-                    const studentSnap = await getDoc(subData.student_ref);
-                    if (studentSnap.exists()) {
-                        studentName = studentSnap.data().nama_lengkap || studentSnap.data().displayName || "Siswa Tanpa Nama";
-                        studentNisn = studentSnap.data().nisn || "";
-                    } else {
-                        studentName = "Siswa (Telah Dihapus)";
-                    }
-                } catch (err) {
-                    console.error("Error fetching student ref:", err);
-                }
+            // 3. Buat Peta (Map) dari submissions agar mudah dicari
+            const submissionMap = new Map<string, SubmissionData>();
+            submissionsSnapshot.docs.forEach(doc => {
+                const subData = doc.data() as SubmissionData;
+                submissionMap.set(subData.student_ref.id, { ...subData, id: doc.id });
+            });
 
-                return {
-                    ...subData,
-                    id: subDoc.id,
-                    studentName,
-                    studentNisn,
-                };
-            });
+            // 4. Tentukan status ujian (untuk siswa yang belum mengerjakan)
+            const now = new Date();
+            const examDeadline = examData.tanggal_selesai.toDate();
 
-            const combinedSubmissions = await Promise.all(submissionsPromises);
-            
-            combinedSubmissions.sort((a, b) => (b.nilai_akhir || 0) - (a.nilai_akhir || 0));
+            // 5. Gabungkan data: Loop SEMUA SISWA, lalu cari submission mereka
+            const combinedResults: SubmissionData[] = [];
 
-            setSubmissions(combinedSubmissions);
+            for (const studentDoc of studentsSnapshot.docs) {
+                const studentData = studentDoc.data();
+                const studentId = studentDoc.id;
+                
+                const studentName = studentData.nama_lengkap || studentData.displayName || "Siswa Tanpa Nama";
+                const studentNisn = studentData.nisn || "";
+
+                const submission = submissionMap.get(studentId);
+
+                if (submission) {
+                    // KASUS 1: Siswa SUDAH mengerjakan
+                    combinedResults.push({
+                        ...submission,
+                        studentName,
+                        studentNisn,
+                    });
+                } else {
+                    // KASUS 2: Siswa BELUM mengerjakan
+                    let syntheticStatus = "";
+                    if (now < examDeadline) {
+                        syntheticStatus = "Belum Mengerjakan"; // Sesuai permintaan Anda
+                    } else {
+                        syntheticStatus = "Tidak Mengerjakan"; // Sesuai permintaan Anda
+                    }
+
+                    combinedResults.push({
+                        id: studentId, // Gunakan ID siswa sebagai key
+                        latihan_ref: examRef,
+                        student_ref: doc(db, "students", studentId),
+                        status: syntheticStatus,
+                        nilai_akhir: undefined,
+                        nilai_esai: undefined,
+                        waktu_selesai: null,
+                        studentName,
+                        studentNisn,
+                    });
+                }
+            }
+
+            // 6. Sortir dan simpan ke state
+            combinedResults.sort((a, b) => (b.nilai_akhir || 0) - (a.nilai_akhir || 0));
+            setSubmissions(combinedResults);
 
         } catch (err: any) {
             console.error("Error fetching results:", err);
@@ -203,6 +236,64 @@ const ExamResultsPage = () => {
         }
     }, [examId, user]);
 
+    const handleCreateManualSubmission = async (studentRef: DocumentReference, studentId: string) => {
+        // Cek apakah submission sudah ada (untuk mencegah duplikat)
+        const submissionExists = submissions.find(s => s.student_ref.id === studentId && s.status === 'dikerjakan');
+        if (submissionExists) {
+            // Jika sudah ada, langsung arahkan ke sana
+            toast.success("Siswa ini sudah memiliki data. Mengarahkan...");
+            router.push(`/teacher/examsPage/${examId}/results/${submissionExists.id}`);
+            return;
+        }
+
+        if (isCreatingSubmission || !exam) return;
+        setIsCreatingSubmission(true);
+        const toastId = toast.loading("Membuat lembar jawaban manual...");
+
+        try {
+            const examRef = doc(db, "exams", examId);
+            
+            // Kita perlu tahu jumlah soal untuk membuat array jawaban kosong
+            const soalCollectionRef = collection(db, "exams", examId, "soal");
+            const soalSnap = await getDocs(soalCollectionRef);
+            const soalCount = soalSnap.size;
+
+            if (soalCount === 0) {
+                throw new Error("Tidak bisa memberi nilai: Ujian ini tidak memiliki soal.");
+            }
+
+            // Buat data submission baru
+            const submissionData = {
+                student_ref: studentRef,
+                latihan_ref: examRef,
+                kelas_ref: exam.kelas_ref,
+                waktu_mulai: serverTimestamp(),
+                waktu_selesai: serverTimestamp(), // Dianggap langsung selesai
+                status: "dikerjakan", // Langsung set "dikerjakan"
+                jawaban: new Array(soalCount).fill(""), // Array jawaban kosong
+                nilai_akhir: 0, // Default 0
+                nilai_esai: 0,  // Default 0 (ini yang akan Anda isi)
+            };
+
+            // Simpan ke database
+            const docRef = await addDoc(collection(db, "students_answers"), submissionData);
+            
+            toast.success("Lembar jawaban dibuat. Mengarahkan...", { id: toastId });
+
+            // Refresh data di tabel (agar statusnya berubah)
+            fetchResultsData(); 
+            
+            // Arahkan guru ke halaman grading untuk dokumen BARU ini
+            router.push(`/teacher/examsPage/${examId}/results/${docRef.id}`);
+
+        } catch (err: any) {
+            console.error("Error creating manual submission:", err);
+            toast.error(err.message || "Gagal membuat lembar jawaban.", { id: toastId });
+        } finally {
+            setIsCreatingSubmission(false);
+        }
+    };
+
     useEffect(() => {
         fetchResultsData();
     }, [fetchResultsData]);
@@ -212,7 +303,7 @@ const ExamResultsPage = () => {
         if (!exam) return { header: [], body: [] }; // Kembalikan array kosong jika exam belum load
 
         const isPG = exam.tipe === 'Pilihan Ganda';
-        const isEsai = exam.tipe === 'Esai';
+        const isEsai = exam.tipe === 'Esai' || exam.tipe === 'Esai Uraian';
 
         // Buat header dinamis
         let header = ["No", "Nama Siswa", "NISN", "Status"];
@@ -255,7 +346,7 @@ const ExamResultsPage = () => {
             const exportDate = new Date().toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' });
 
             const title = [
-                [`Judul Latihan:`, exam.judul],
+                [`Judul Ujian:`, exam.judul],
                 [`Mata Pelajaran:`, exam.mapelNama ?? 'N/A'],
                 [`Kelas:`, exam.kelasNama ?? 'N/A'], 
                 [`Nama Guru:`, exam.guruNama ?? 'N/A'],
@@ -336,7 +427,7 @@ const ExamResultsPage = () => {
             doc.text(`Mata Pelajaran: ${exam.mapelNama ?? 'N/A'}`, 14, 30);
             doc.text(`Kelas: ${exam.kelasNama ?? 'N/A'}`, 14, 36); 
             doc.text(`Nama Guru: ${exam.guruNama ?? 'N/A'}`, 14, 42); 
-            doc.text(`Tipe Latihan: ${exam.tipe}`, 14, 48); 
+            doc.text(`Tipe Ujian: ${exam.tipe}`, 14, 48); 
             doc.text(`Tanggal Export: ${exportDate}`, 14, 54); 
             
             (doc as any).autoTable({
@@ -376,7 +467,7 @@ const ExamResultsPage = () => {
                 onClick={() => router.push('/teacher/examsPage')}
                 className="flex items-center gap-2 text-blue-600 hover:text-blue-800 mb-4 font-medium">
                 <ArrowLeft className="w-5 h-5" />
-                Kembali ke Daftar Latihan
+                Kembali ke Daftar Ujian
             </button>
 
             {error && (
@@ -392,7 +483,7 @@ const ExamResultsPage = () => {
                     {/* ... (render header & tombol export tidak berubah) ... */}
                     <div>
                         <h1 className="text-3xl font-bold text-gray-800">
-                            Hasil Latihan
+                            Hasil Ujian
                         </h1>
                         <p className="text-lg text-gray-600 mt-1">{exam?.judul}</p>
                     </div>
@@ -421,7 +512,7 @@ const ExamResultsPage = () => {
                     <div className="flex flex-col items-center justify-center h-60 text-gray-500 border-t mt-4 pt-4">
                         <AlertTriangle className="w-16 h-16 text-gray-300" />
                         <h3 className="text-xl font-semibold mt-4">Belum Ada Hasil</h3>
-                        <p className="text-center">Belum ada siswa yang menyelesaikan latihan ini.</p>
+                        <p className="text-center">Belum ada siswa yang menyelesaikan Ujian ini.</p>
                     </div>
                 )}
 
@@ -446,7 +537,7 @@ const ExamResultsPage = () => {
                                             Skor PG
                                         </th>
                                     )}
-                                    {exam?.tipe === 'Esai' && (
+                                    {(exam?.tipe === 'Esai' || exam?.tipe === 'Esai Uraian' ) && (
                                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Skor Esai
                                         </th>
@@ -489,20 +580,31 @@ const ExamResultsPage = () => {
                                                 </>
                                             ) : (
                                                 // Tampilkan ini jika 'waktu_selesai' masih null
-                                                <div className="text-sm text-yellow-600">Masih Mengerjakan</div>
+                                                <div className="text-sm text-yellow-600">-</div>
                                             )}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             {/* ... (render status tidak berubah) ... */}
-                                            {sub.status === 'dikerjakan' ? (
+                                            {sub.status === 'dikerjakan' && (
                                                 <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
                                                     Selesai
                                                 </span>
-                                            ) : (
+                                            )} 
+                                            {sub.status === 'Belum Mengerjakan' && (
                                                 <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                                    {sub.status}
+                                                    Belum Mengerjakan
                                                 </span>
-                                            )}
+                                            )} 
+                                            {sub.status === 'Tidak Mengerjakan' && (
+                                                <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                                    Tidak Mengerjakan
+                                                </span>
+                                            )} 
+                                            {sub.status === 'sedang dikerjakan' && (
+                                                <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                                    Sedang Dikerjakan
+                                                </span>
+                                            )} 
                                         </td>
                                         
                                         {/* --- MODIFIKASI: Tampilan Skor Kondisional --- */}
@@ -513,9 +615,9 @@ const ExamResultsPage = () => {
                                                 </span>
                                             </td>
                                         )}
-                                        {exam?.tipe === 'Esai' && (
+                                        {(exam?.tipe === 'Esai' ||exam?.tipe === 'Esai Uraian' ) && (
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                <span className="text-lg font-bold text-green-600">
+                                                <span className="text-md font-bold text-yellow-600">
                                                     {sub.nilai_esai ?? 'Belum Dinilai'}
                                                 </span>
                                             </td>
@@ -523,12 +625,27 @@ const ExamResultsPage = () => {
 
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             {/* ... (render link detail tidak berubah) ... */}
-                                            <Link 
+                                            {sub.status === 'dikerjakan' && (
+                                                <Link 
                                                 href={`/teacher/examsPage/${examId}/results/${sub.id}`}
                                                 className="text-blue-600 hover:text-blue-900"
                                             >
                                                 Lihat Detail Jawaban
                                             </Link>
+                                            )}
+                                            {(sub.status === 'Belum Mengerjakan' || sub.status === 'sedang dikerjakan')  && (
+                                               <span className="text-gray-400 cursor-not-allowed" title="Siswa belum menyelesaikan ujian">{sub.status === 'sedang dikerjakan' ? '(Sedang dikerjakan)' : '(Belum dikerjakan)'}</span>
+                                            )}
+                                            {sub.status === 'Tidak Mengerjakan'  && (
+                                                <button
+                                                    onClick={() => handleCreateManualSubmission(sub.student_ref, sub.id)}
+                                                    disabled={isCreatingSubmission}
+                                                    className="text-green-600 hover:text-green-900 disabled:opacity-50">
+                                                    Beri Nilai Manual
+                                                </button>
+                                            )}
+                                            
+
                                         </td>
                                     </tr>
                                 ))}

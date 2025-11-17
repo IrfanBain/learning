@@ -153,7 +153,7 @@ const SingleStudentPage = () => {
   return (
     <div className="flex-1 p-4 flex flex-col gap-4 xl:flex-row">
       {/* LEFT */}
-      <div className="w-full xl:w-2/3">
+      <div className="w-full flex flex-col gap-6">
         {/* TOP */}
         <div className="flex flex-col lg:flex-row gap-4">
           {/* USER INFO CARD */}
@@ -270,26 +270,13 @@ const SingleStudentPage = () => {
 
         {/* BOTTOM (Kalender Anda) */}
         {/* <div className="mt-4 bg-white rounded-md p-4 h-[800px]"> ... </div> */}
+         <Performance />
+          <Announcements />
+        
       </div>
 
-      {/* RIGHT (Pintasan, Performance, Announcements - Anda bisa biarkan ini) */}
-      <div className="w-full xl:w-1/3 flex flex-col gap-4">
-        {/* Pintasan */}
-        <div className="bg-white p-4 rounded-md shadow">
-          <h1 className="text-xl font-semibold">Pintasan</h1>
-          <div className="mt-4 flex gap-4 flex-wrap text-xs text-gray-500">
-             {/* Pastikan 'student.id' adalah UID */}
-            <Link className="p-3 rounded-md bg-lamaSkyLight hover:bg-blue-100" href={`/list/lessons?studentId=${student.id}`}>Pelajaran Siswa</Link>
-            <Link className="p-3 rounded-md bg-lamaPurpleLight hover:bg-purple-100" href={`/list/teachers?studentId=${student.id}`}>Guru Siswa</Link>
-            <Link className="p-3 rounded-md bg-pink-50 hover:bg-pink-100" href={`/list/exams?studentId=${student.id}`}>Latihan Siswa</Link>
-            <Link className="p-3 rounded-md bg-lamaSkyLight hover:bg-blue-100" href={`/list/assignments?studentId=${student.id}`}>Tugas Siswa</Link>
-            <Link className="p-3 rounded-md bg-lamaYellowLight hover:bg-yellow-100" href={`/list/results?studentId=${student.id}`}>Nilai Siswa</Link>
-          </div>
-        </div>
-        {/* Komponen Lain */}
-        <Performance />
-        <Announcements />
-      </div>
+
+      
     </div>
   );
 };

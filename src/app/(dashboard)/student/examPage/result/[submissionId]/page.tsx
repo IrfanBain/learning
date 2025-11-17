@@ -35,7 +35,7 @@ import { toast } from 'react-hot-toast';
 // Data dari koleksi 'exams'
 interface ExamData {
     judul: string;
-    tipe: "Pilihan Ganda" | "Esai" | "Tugas (Upload File)";
+    tipe: "Pilihan Ganda" | "Esai" | "Tugas (Upload File)" | "Esai Uraian";
 }
 
 // Data dari koleksi 'soal'
@@ -43,11 +43,12 @@ interface SoalData {
     id: string;
     urutan: number;
     pertanyaan: string;
-    tipe_soal: "Pilihan Ganda" | "Esai";
+    tipe_soal: "Pilihan Ganda" | "Esai" | "Esai Uraian";
     poin: number;
     opsi?: { [key: string]: string };
     kunci_jawaban?: string;
     rubrik_penilaian?: string;
+    jumlah_input?: number;
 }
 
 // --- MODIFIKASI: Tipe SubmissionData ---
@@ -59,6 +60,7 @@ interface SubmissionData {
     nilai_esai?: number;  // <-- TAMBAHKAN INI
     waktu_selesai: Timestamp;
     status: string;
+    skor_per_soal?: { [key: string]: number };
 }
 
 // Data dari koleksi 'students'
@@ -132,12 +134,12 @@ const StudentResultPage = () => {
                 setStudentName("Siswa (Telah Dihapus)");
             }
 
-            // 4. Set data Latihan
+            // 4. Set data Ujian
             const examData = examSnap.data() as ExamData;
             if (examSnap.exists()) {
                 setExam(examData);
             } else {
-                throw new Error("Data latihan tidak ditemukan.");
+                throw new Error("Data Ujian tidak ditemukan.");
             }
 
             // 5. Set data Soal dan Hitung Statistik
@@ -170,7 +172,7 @@ const StudentResultPage = () => {
             console.error("Error fetching detail data:", err);
             setError(err.message || "Gagal memuat detail jawaban.");
             if (err.code === 'permission-denied') {
-                setError("Izin ditolak. Gagal memuat data latihan atau soal. Pastikan firestore.rules Anda sudah benar.");
+                setError("Izin ditolak. Gagal memuat data Ujian atau soal. Pastikan firestore.rules Anda sudah benar.");
                 toast.error("Gagal memuat: Izin ditolak.");
             }
         } finally {
@@ -206,7 +208,7 @@ const StudentResultPage = () => {
                     onClick={() => router.push('/student/examPage')}
                     className="flex items-center gap-2 text-blue-600 hover:text-blue-800 mb-4 font-medium">
                     <ArrowLeft className="w-5 h-5" />
-                    Kembali ke Daftar Latihan
+                    Kembali ke Daftar Ujian
                 </button>
                 <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 my-4 rounded-md" role="alert">
                     <p className="font-bold">Terjadi Kesalahan</p>
@@ -227,7 +229,7 @@ const StudentResultPage = () => {
                 onClick={() => router.push('/student/examPage')}
                 className="flex items-center gap-2 text-blue-600 hover:text-blue-800 mb-4 font-medium">
                 <ArrowLeft className="w-5 h-5" />
-                Kembali ke Daftar Latihan
+                Kembali ke Daftar Ujian
             </button>
 
             {/* Header Info Siswa & Skor */}
@@ -252,9 +254,9 @@ const StudentResultPage = () => {
                                 <p className="text-4xl font-bold text-blue-600">{submission.nilai_akhir ?? '-'}</p>
                             </>
                         )}
-                        {exam.tipe === 'Esai' && (
+                        {(exam.tipe === 'Esai' || exam.tipe === 'Esai Uraian') && (
                              <>
-                                <p className="text-sm text-gray-500">Nilai Akhir (Esai)</p>
+                                <p className="text-sm text-gray-500">Nilai Akhir (Esai/Uraian)</p>
                                 {/* Cek apakah nilai_esai sudah diisi (bukan null/undefined) */}
                                 {(submission.nilai_esai !== null && submission.nilai_esai !== undefined) ? (
                                     <p className="text-4xl font-bold text-green-600">{submission.nilai_esai}</p>
@@ -284,7 +286,7 @@ const StudentResultPage = () => {
                             </div>
                         </>
                     )}
-                    {exam.tipe === 'Esai' && (
+                    {(exam.tipe === 'Esai' || exam.tipe === 'Esai Uraian') && (
                         <>
                             <div className="flex items-center gap-2">
                                 <MessageSquare className="w-5 h-5 text-blue-600 bg-blue-100 p-1 rounded-full" />
@@ -319,7 +321,11 @@ const StudentResultPage = () => {
                                         {soal.urutan}
                                     </span>
                                     <span className="text-sm font-medium text-gray-600">
-                                        (Poin Maks: {soal.poin})
+                                        {soal.tipe_soal === 'Pilihan Ganda' ? (
+                                            `(Skor: ${studentAnswer === correctAnswer ? soal.poin : 0} / ${soal.poin})`
+                                        ) : (
+                                            `(Skor: ${submission.skor_per_soal?.[soal.id] ?? 0} / ${soal.poin})`
+                                        )}
                                     </span>
                                 </div>
                                 {soal.tipe_soal === 'Pilihan Ganda' && studentAnswer === correctAnswer && (
@@ -330,6 +336,9 @@ const StudentResultPage = () => {
                                 )}
                                 {soal.tipe_soal === 'Esai' && (
                                     <span className="text-sm font-semibold text-blue-600 bg-blue-100 px-3 py-1 rounded-full">Esai</span>
+                                )}
+                                {soal.tipe_soal === 'Esai Uraian' && (
+                                    <span className="text-sm font-semibold text-purple-600 bg-purple-100 px-3 py-1 rounded-full">Esai Uraian</span>
                                 )}
                             </div>
                             {/* Isi Pertanyaan (Tidak berubah) */}
@@ -347,6 +356,12 @@ const StudentResultPage = () => {
                                 <RenderEsai 
                                     soal={soal} 
                                     studentAnswer={studentAnswer} 
+                                />
+                            )}
+                            {soal.tipe_soal === 'Esai Uraian' && (
+                                <RenderEsaiUraian
+                                    soal={soal}
+                                    studentAnswer={studentAnswer}
                                 />
                             )}
                         </div>
@@ -429,6 +444,62 @@ const RenderEsai = ({ soal, studentAnswer }: {
             )} */}
         </div>
     )
+}
+
+// --- BARU: Komponen helper untuk merender Jawaban Esai Uraian ---
+const RenderEsaiUraian = ({ soal, studentAnswer }: {
+soal: SoalData,
+studentAnswer: string
+}) => {
+// 1. Tentukan jumlah input yang SEHARUSNYA ada
+const jumlahInput = soal.jumlah_input || 1;
+
+// 2. Parse jawaban JSON yang TERSIMPAN
+let savedAnswers: string[] = [];
+try {
+const parsed = JSON.parse(studentAnswer);
+if (Array.isArray(parsed)) {
+savedAnswers = parsed;
+ }
+} catch (e) {
+ // Biarkan 'savedAnswers' sebagai array kosong jika parse gagal (misal, "")
+}
+
+ // 3. Buat array TAMPILAN dengan panjang yang BENAR
+const displayAnswers = Array.from({ length: jumlahInput }, (_, index) => {
+ return savedAnswers[index] || ""; // Isi dengan jawaban atau string kosong
+});
+
+return (
+<div className="space-y-4">
+ {/* Jawaban Siswa (di-loop) */}
+<div className="p-3 bg-purple-50 border-l-4 border-purple-400 rounded-r-md">
+<p className="font-semibold text-purple-800 mb-2">Jawaban Anda:</p>
+<div className="space-y-2">
+{displayAnswers.map((answer, index) => (
+<div key={index} className="flex items-start gap-3">
+<span className="flex items-center justify-center w-6 h-6 rounded-full bg-purple-200 text-purple-700 font-semibold text-sm flex-shrink-0 pt-0.5">
+{index + 1}
+</span>
+<p className="text-purple-900 whitespace-pre-wrap text-sm pt-0.5 w-full bg-white/50 p-2 rounded">
+{answer || <span className="italic text-gray-500">-- Tidak dijawab --</span>}
+</p>
+ </div>
+ ))}
+</div>
+ </div>
+
+{/* Tampilkan Rubrik Guru (jika ada) */}
+{/* {soal.rubrik_penilaian && (
+<div className="p-3 bg-gray-50 border-l-4 border-gray-400 rounded-r-md">
+<p className="font-semibold text-gray-800 mb-1">Kunci Jawaban/Rubrik Guru:</p>
+<p className="text-gray-900 whitespace-pre-wrap text-sm">
+{soal.rubrik_penilaian}
+</p>
+</div>
+)} */}
+</div>
+)
 }
 
 export default StudentResultPage;

@@ -36,7 +36,7 @@ import { toast } from 'react-hot-toast';
 // Data dari koleksi 'exams'
 interface ExamData {
     judul: string;
-    tipe: "Pilihan Ganda" | "Esai" | "Tugas (Upload File)";
+    tipe: "Pilihan Ganda" | "Esai" | "Tugas (Upload File)" | "Esai Uraian";
 }
 
 // Data dari koleksi 'soal'
@@ -44,11 +44,12 @@ interface SoalData {
     id: string;
     urutan: number;
     pertanyaan: string;
-    tipe_soal: "Pilihan Ganda" | "Esai";
+    tipe_soal: "Pilihan Ganda" | "Esai" | "Esai Uraian";
     poin: number;
     opsi?: { [key: string]: string };
     kunci_jawaban?: string;
     rubrik_penilaian?: string;
+    jumlah_input?: number;
 }
 
 // Data dari koleksi 'student's_answer'
@@ -58,6 +59,7 @@ interface SubmissionData {
     latihan_ref: DocumentReference;
     nilai_akhir?: number; // Skor PG
     nilai_esai?: number;  // <-- BARU: Skor Esai
+    skor_per_soal?: number;
     waktu_selesai: Timestamp;
     status: string;
 }
@@ -176,7 +178,7 @@ const StudentResultPage = () => {
                 setSummary({ correct, incorrect, essays: 0, totalScore, maxScore });
             } 
             // --- BARU: Inisialisasi state skor esai jika ada nilai esai sebelumnya ---
-            else if (examData.tipe === "Esai") {
+            else if (examData.tipe === "Esai" || examData.tipe === "Esai Uraian") {
                 // Jika sudah pernah dinilai ('nilai_esai' tidak null), 
                 // kita tidak bisa mengembalikan skor per-soal.
                 // Kita akan menangani ini di UI.
@@ -225,7 +227,7 @@ const StudentResultPage = () => {
         if (!submission) return;
         
         // Validasi: Pastikan semua soal esai sudah diberi nilai
-        const essayQuestionIds = soalList.filter(s => s.tipe_soal === 'Esai').map(s => s.id);
+        const essayQuestionIds = soalList.filter(s => s.tipe_soal === 'Esai' || s.tipe_soal === 'Esai Uraian').map(s => s.id);
         const scoredQuestionIds = Object.keys(essayScores);
         
         if (essayQuestionIds.length !== scoredQuestionIds.length) {
@@ -241,7 +243,8 @@ const StudentResultPage = () => {
             
             const subRef = doc(db, "students_answers", submissionId);
             await updateDoc(subRef, {
-                nilai_esai: totalScore // Simpan total skor esai
+                nilai_esai: totalScore, // Simpan total skor esai
+                skor_per_soal: essayScores
             });
 
             // Perbarui state submission secara lokal agar UI update
@@ -293,7 +296,7 @@ const StudentResultPage = () => {
 
     return (
         // --- MODIFIKASI: Tambah padding-bottom jika ada panel simpan ---
-        <div className={`relative p-4 sm:p-6 bg-gray-50 min-h-screen font-sans ${exam.tipe === 'Esai' ? 'pb-48' : ''}`}>
+        <div className={`relative p-4 sm:p-6 bg-gray-50 min-h-screen font-sans ${(exam.tipe === 'Esai' || exam.tipe === 'Esai Uraian') ? 'pb-48' : ''}`}>
             <button 
                 onClick={() => router.back()}
                 className="flex items-center gap-2 text-blue-600 hover:text-blue-800 mb-4 font-medium">
@@ -323,10 +326,10 @@ const StudentResultPage = () => {
                                 <p className="text-4xl font-bold text-blue-600">{submission.nilai_akhir ?? 'N/A'}</p>
                             </>
                         )}
-                        {exam.tipe === 'Esai' && (
+                        {(exam.tipe === 'Esai' || exam.tipe === "Esai Uraian") && (
                              <>
-                                <p className="text-sm text-gray-500">Nilai Akhir (Esai)</p>
-                                <p className="text-4xl font-bold text-blue-600">
+                                <p className="text-sm text-gray-500">Nilai Akhir (Esai/uraian)</p>
+                                <p className="text-xl font-bold text-blue-600">
                                     {/* Tampilkan nilai dari DB jika ada, jika tidak, tampilkan hitungan sementara */}
                                     {submission.nilai_esai !== null ? submission.nilai_esai : (currentTotalEssayScore || 'Belum Dinilai')}
                                 </p>
@@ -353,7 +356,7 @@ const StudentResultPage = () => {
                             </div>
                         </>
                     )}
-                     {exam.tipe === 'Esai' && (
+                     {(exam.tipe === 'Esai' || exam.tipe === 'Esai Uraian') && (
                         <div className="flex items-center gap-2">
                             <MessageSquare className="w-5 h-5 text-blue-600 bg-blue-100 p-1 rounded-full" />
                             <span className="font-medium">{summary.essays}</span> Total Soal Esai
@@ -380,7 +383,12 @@ const StudentResultPage = () => {
                                         {soal.urutan}
                                     </span>
                                     <span className="text-sm font-medium text-gray-600">
-                                        (Poin Maks: {soal.poin})
+                                        {soal.tipe_soal === 'Pilihan Ganda' ? (
+                                            `(Skor: ${studentAnswer === correctAnswer ? soal.poin : 0} / ${soal.poin})`
+                                        ) : (
+                                            `(Skor: ${essayScores[soal.id] || 0} / ${soal.poin})`
+                                        )}
+                                        
                                     </span>
                                 </div>
                                 {soal.tipe_soal === 'Pilihan Ganda' && studentAnswer === correctAnswer && (
@@ -389,7 +397,7 @@ const StudentResultPage = () => {
                                 {soal.tipe_soal === 'Pilihan Ganda' && studentAnswer !== correctAnswer && (
                                     <span className="text-sm font-semibold text-red-600 bg-red-100 px-3 py-1 rounded-full">Salah</span>
                                 )}
-                                {soal.tipe_soal === 'Esai' && (
+                                {(soal.tipe_soal === 'Esai' || soal.tipe_soal === 'Esai Uraian') && (
                                     <span className="text-sm font-semibold text-blue-600 bg-blue-100 px-3 py-1 rounded-full">Esai</span>
                                 )}
                             </div>
@@ -415,13 +423,23 @@ const StudentResultPage = () => {
                                     isGraded={submission.nilai_esai !== null} // Cek apakah sudah pernah disimpan
                                 />
                             )}
+                            {soal.tipe_soal === 'Esai Uraian' && (
+                                <RenderEsaiUraian 
+                                    soal={soal} 
+                                    studentAnswer={studentAnswer} 
+                                    // --- BARU: Kirim props untuk input nilai ---
+                                    scoreValue={essayScores[soal.id]}
+                                    onScoreChange={(value) => handleEssayScoreChange(soal.id, value, soal.poin)}
+                                    isGraded={submission.nilai_esai !== null} // Cek apakah sudah pernah disimpan
+                                />
+                            )}
                         </div>
                     );
                 })}
             </div>
 
             {/* --- BARU: Panel Simpan Nilai Esai (Sticky) --- */}
-            {exam.tipe === 'Esai' && (
+            {(exam.tipe === 'Esai' || exam.tipe === 'Esai Uraian') && (
                 <div className=" bottom-5 left-7 right-7 bg-white p-4 border-t border-gray-200 shadow-lg rounded-md mt-5">
                     <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-3">
                         <div>
@@ -548,6 +566,91 @@ const RenderEsai = ({ soal, studentAnswer, scoreValue, onScoreChange, isGraded }
             </div>
         </div>
     )
+}
+
+// --- BARU: Komponen helper untuk merender dan menilai Jawaban Esai Uraian ---
+const RenderEsaiUraian = ({ soal, studentAnswer, scoreValue, onScoreChange, isGraded }: {
+soal: SoalData,
+studentAnswer: string,
+ scoreValue: number,
+onScoreChange: (value: string) => void,
+isGraded: boolean
+}) => {
+ // 1. Tentukan jumlah input yang SEHARUSNYA ada
+const jumlahInput = soal.jumlah_input || 1;
+
+// 2. Parse jawaban JSON yang TERSIMPAN
+let savedAnswers: string[] = [];
+try {
+const parsed = JSON.parse(studentAnswer);
+ if (Array.isArray(parsed)) {
+savedAnswers = parsed;
+ }
+ } catch (e) {
+ // Biarkan 'savedAnswers' sebagai array kosong jika parse gagal (misal, "")
+ }
+
+// 3. Buat array TAMPILAN dengan panjang yang BENAR
+const displayAnswers = Array.from({ length: jumlahInput }, (_, index) => {
+return savedAnswers[index] || ""; // Isi dengan jawaban atau string kosong
+});
+
+return (
+<div className="space-y-4">
+ {/* Jawaban Siswa (di-loop) */}
+<div className="p-3 bg-purple-50 border-l-4 border-purple-400 rounded-r-md">
+<p className="font-semibold text-purple-800 mb-2">Jawaban Siswa:</p>
+<div className="space-y-2">
+{displayAnswers.map((answer, index) => (
+ <div key={index} className="flex items-start gap-3">
+<span className="flex items-center justify-center w-6 h-6 rounded-full bg-purple-200 text-purple-700 font-semibold text-sm flex-shrink-0 pt-0.5">
+{index + 1}
+</span>
+<p className="text-purple-900 whitespace-pre-wrap text-sm pt-0.5 w-full bg-white/50 p-2 rounded">
+{answer || <span className="italic text-gray-500">-- Tidak dijawab --</span>}
+</p>
+</div>
+))}
+</div>
+</div>
+
+{/* Rubrik Guru */}
+{soal.rubrik_penilaian && (
+<div className="p-3 bg-gray-50 border-l-4 border-gray-400 rounded-r-md">
+<p className="font-semibold text-gray-800 mb-1">Kunci Jawaban/Rubrik Guru:</p>
+<p className="text-gray-900 whitespace-pre-wrap text-sm">
+{soal.rubrik_penilaian}
+</p>
+</div>
+ )}
+
+ {/* Input Skor (Sama seperti RenderEsai) */}
+<div className="pt-2 ">
+<label 
+htmlFor={`score-${soal.id}`} 
+className="block text-sm font-medium text-gray-700"
+>
+Berikan Skor (Maks: {soal.poin} Poin)
+ </label>
+<input 
+type="number"
+id={`score-${soal.id}`}
+value={scoreValue === null || isNaN(scoreValue) ? "" : scoreValue}
+onChange={(e) => onScoreChange(e.target.value)}
+min={0}
+max={soal.poin}
+className="mt-1 w-32 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+placeholder="Contoh: 10"
+/>
+{isGraded && (scoreValue === null || scoreValue === undefined) && (
+<p className="text-xs text-green-600 mt-1">
+Soal ini sudah pernah dinilai (bagian dari total). <br/>
+Mengisi ulang akan menimpa nilai sebelumnya saat disimpan.
+</p>
+)}
+</div>
+</div>
+)
 }
 
 export default StudentResultPage;

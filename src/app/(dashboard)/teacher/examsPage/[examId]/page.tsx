@@ -740,7 +740,7 @@ if (examData?.status !== 'Draft') {
             <div className="flex flex-col lg:flex-row gap-6">
                 
                 <div className="w-full lg:w-1/3">
-                    <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100 sticky top-6">
+                    <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100 sticky top-0 self-start">
                         {examData.status !== 'Draft' ? (
 
                             <div className={`p-4 border-l-4 rounded-md mb-4 ${

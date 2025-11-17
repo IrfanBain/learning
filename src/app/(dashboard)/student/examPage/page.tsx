@@ -29,7 +29,7 @@ interface StudentData {
 interface ExamData {
     id: string;
     judul: string;
-    tipe: "Pilihan Ganda" | "Esai" | "Tugas (Upload File)";
+    tipe: "Pilihan Ganda" | "Esai" | "Tugas (Upload File)" | "Esai Uraian";
     mapel_ref: DocumentReference;
     guru_ref: DocumentReference;
     tanggal_selesai: Timestamp;

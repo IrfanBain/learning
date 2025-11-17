@@ -14,11 +14,13 @@ import {
     addDoc, 
     serverTimestamp, 
     DocumentReference,
-    Timestamp
+    Timestamp,
+    deleteDoc,
+    writeBatch
 } from 'firebase/firestore'; // <-- Impor ASLI
 
 // Import ikon-ikon
-import { PlusSquare, List, CheckCircle, Clock, XCircle, ChevronRight, Loader2, FileText, AlertTriangle, Award } from 'lucide-react';
+import { PlusSquare, Trash2, List, CheckCircle, Clock, XCircle, ChevronRight, Loader2, FileText, AlertTriangle, Award } from 'lucide-react';
 import { toast } from 'react-hot-toast'; // <-- Asumsi Anda pakai 'sonner' untuk notifikasi
 import Link from 'next/link';
 
@@ -268,6 +270,76 @@ const TeacherExamPage = () => {
         }
     };
 
+    // --- BARU: Fungsi untuk mengeksekusi penghapusan ---
+const executeDeleteExam = async (examId: string, examJudul: string) => {
+const loadingToastId = toast.loading(`Menghapus "${examJudul}" dan semua soalnya...`);
+
+try {
+const examRef = doc(db, "exams", examId);
+
+// 1. Hapus semua soal di dalam sub-koleksi "soal"
+const soalCollectionRef = collection(db, "exams", examId, "soal");
+const soalSnap = await getDocs(soalCollectionRef);
+
+if (!soalSnap.empty) {
+// console.log(`Menghapus ${soalSnap.size} soal dari sub-koleksi...`);
+const batch = writeBatch(db);
+soalSnap.docs.forEach(soalDoc => {
+batch.delete(soalDoc.ref);
+});
+ await batch.commit();
+ }
+
+ // 2. Setelah soal terhapus, hapus dokumen ujian utama
+ await deleteDoc(examRef);
+
+ // 3. Refresh daftar ujian di UI
+ toast.success(`Ujian "${examJudul}" berhasil dihapus.`, { id: loadingToastId });
+ if(user) fetchExamList(user.uid); // Panggil ulang fetch
+
+ } catch (err: any) {
+ console.error("Error deleting exam:", err);
+ toast.error(err.message || "Gagal menghapus ujian.", { id: loadingToastId });
+ }
+};
+
+// --- BARU: Fungsi konfirmasi sebelum hapus ---
+ const handleDeleteExam = (examId: string, examJudul: string) => {
+ // Tampilkan toast konfirmasi
+ toast(
+(t) => ( 
+<div className="flex flex-col gap-3 p-2">
+<div className="flex items-center gap-2">
+<AlertTriangle className="w-6 h-6 text-red-500" />
+<p className="font-semibold text-gray-900">
+ Hapus Ujian Ini?
+</p>
+</div>
+<p className="text-sm text-gray-600">
+ Anda yakin ingin menghapus <strong>{examJudul}</strong>?
+ <br/>Semua soal di dalamnya juga akan terhapus.
+</p>
+<div className="flex gap-2 justify-end">
+ <button
+className="py-1.5 px-3 rounded-md text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-800"
+onClick={() => toast.dismiss(t.id)} >
+ Batal
+ </button>
+<button
+className="py-1.5 px-3 rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700"
+onClick={() => {
+toast.dismiss(t.id); 
+ executeDeleteExam(examId, examJudul); 
+}} >
+ Ya, Hapus
+</button>
+</div>
+</div>
+ ),
+{ duration: 6000, position: "top-center" }
+ );
+};
+
     // --- TAMPILAN (RENDER) ---
 return (
         <div className="p-4 sm:p-6 bg-gray-50 min-h-screen font-sans">
@@ -334,7 +406,7 @@ return (
                     ) : (
                         <div className="space-y-3">
                             {examList.map(exam => (
-                                <ExamListItem key={exam.id} exam={exam} />
+                                <ExamListItem key={exam.id} exam={exam} onDelete={handleDeleteExam} />
                             ))}
                         </div>
                     )}
@@ -487,7 +559,7 @@ return (
 // --- KOMPONEN PENDUKUNG ---
 
 // Komponen kecil untuk menampilkan satu item Ujian di daftar
-const ExamListItem = ({ exam }: { exam: ExamDoc }) => {
+const ExamListItem = ({ exam, onDelete }: { exam: ExamDoc, onDelete: (examId: string, examJudul: string) => void }) => {
     const getStatusChip = (status: string) => {
         switch (status) {
             case 'Dipublikasi':
@@ -558,6 +630,12 @@ const ExamListItem = ({ exam }: { exam: ExamDoc }) => {
                 >
                     Kelola Soal <ChevronRight className="w-4 h-4" />
                 </Link>
+                <button
+                onClick={() => onDelete(exam.id, exam.judul)}
+                className="flex items-center justify-center sm:justify-start gap-1 text-sm text-red-600 hover:text-red-800 font-medium w-full sm:w-auto"
+                >
+                    <Trash2 className="w-4 h-4" /> Hapus
+                </button>
             </div>
         </div>
     );
