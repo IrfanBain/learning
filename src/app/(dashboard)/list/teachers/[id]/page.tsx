@@ -147,7 +147,7 @@ export default function SingleTeacherPage() {
       <div className="flex flex-col xl:flex-row gap-6">
 
         {/* Kolom Kiri (2/3) */}
-        <div className="w-full xl:w-2/3 flex flex-col gap-6">
+        <div className="w-full flex flex-col gap-6">
 
           {/* TOP SECTION (Info Utama + Ringkasan Kecil) */}
           <div className="flex flex-col lg:flex-row gap-6">
@@ -169,7 +169,7 @@ export default function SingleTeacherPage() {
                  {/* Nama & Tombol Edit */}
                  <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
                     <h1 className="text-2xl font-bold text-gray-800">{teacherData.nama_lengkap}</h1>
-                    {currentUser?.role === "admin" && (
+                    {/* {currentUser?.role === "admin" && (
                       <Link
                         href={`/list/teachers/edit/${teacherId}`}
                         className="flex-shrink-0 flex items-center gap-2 px-3 py-1.5 bg-blue-500 text-white rounded-md hover:bg-blue-600 text-xs sm:text-sm"
@@ -177,7 +177,7 @@ export default function SingleTeacherPage() {
                       >
                         <FiEdit className="w-4 h-4" /> Edit
                       </Link>
-                     )} 
+                     )}  */}
                  </div>
                  {/* NIP & Peran */}
                 <p className="text-md text-gray-600">
@@ -262,33 +262,12 @@ export default function SingleTeacherPage() {
               <h1 className="text-xl font-semibold mb-4">Jadwal Mengajar Guru</h1>
               <BigCalendar />
           </div> */}
-
-        </div>
-
-        {/* Kolom Kanan (1/3) */}
-        <div className="w-full xl:w-1/3 flex flex-col gap-6">
-
-          {/* Kartu Pintasan */}
-          <div className="bg-white p-6 rounded-lg shadow-md border border-gray-100">
-             <h3 className="text-lg font-semibold text-gray-700 mb-4 border-b pb-2">Pintasan Terkait</h3>
-            <div className="flex flex-col gap-3 text-sm">
-              <Link className="p-3 rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors" href={`/list/classes?teacherId=${teacherId}`}>
-                Lihat Kelas yang Diajar
-              </Link>
-              <Link className="p-3 rounded-md bg-green-50 text-green-700 hover:bg-green-100 transition-colors" href={`/list/students?homeroomTeacherId=${teacherId}`}>
-                Lihat Siswa Wali Kelas
-              </Link>
-              <Link className="p-3 rounded-md bg-yellow-50 text-yellow-700 hover:bg-yellow-100 transition-colors" href={`/list/lessons?teacherId=${teacherId}`}>
-                Lihat Pelajaran Dibuat
-              </Link>
-            </div>
-          </div>
-
-          {/* KOMPONEN TAMBAHAN */}
-          {/* <Performance /> */}
           <Announcements />
 
         </div>
+
+      
+        
       </div>
     </div>
   );

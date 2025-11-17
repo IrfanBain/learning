@@ -54,7 +54,7 @@ interface StudentData {
 interface ExamData {
     id: string;
     judul: string;
-    tipe: "Pilihan Ganda" | "Esai" | "Tugas (Upload File)";
+    tipe: "Pilihan Ganda" | "Esai" | "Tugas (Upload File)" | "Esai Uraian";
     mapel_ref: DocumentReference;
     guru_ref: DocumentReference;
     tanggal_selesai: Timestamp;
@@ -68,10 +68,11 @@ interface SoalData {
     id: string;
     urutan: number;
     pertanyaan: string;
-    tipe_soal: "Pilihan Ganda" | "Esai";
+    tipe_soal: "Pilihan Ganda" | "Esai" | "Esai Uraian";
     poin: number;
     opsi?: { [key: string]: string }; // "A", "B", "C", "D"
     kunci_jawaban?: string; // "A"
+    jumlah_input?: number;
     // rubrik_penilaian?: string; // Tidak perlu di-load di sini
 }
 
@@ -170,6 +171,71 @@ const StudentExamStartPage = () => {
     const [answers, setAnswers] = useState<string[]>([]); // Array untuk menyimpan jawaban
     const [flags, setFlags] = useState<boolean[]>([]); // Array untuk menandai "ragu-ragu"
     const [currentSubmissionId, setCurrentSubmissionId] = useState<string | null>(null); // ID dokumen di student's_answer
+    const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
+
+    useEffect(() => {
+        // Jangan lakukan apa-apa jika ujian belum dimulai (submissionId belum ada)
+        // atau jika sedang dalam proses submit
+        if (!currentSubmissionId || pageStatus === 'submitting') {
+            return;
+        }
+
+        // Atur timer 'debounce'. Kita tunggu 2 detik setelah siswa selesai mengetik.
+        const saveTimer = setTimeout(async () => {
+            console.log("Menyimpan progress jawaban...");
+            try {
+                const submissionRef = doc(db, "students_answers", currentSubmissionId);
+                await updateDoc(submissionRef, {
+                    jawaban: answers // Simpan seluruh array jawaban saat ini
+                });
+                console.log("Progress tersimpan!");
+            } catch (err) {
+                console.error("Gagal melakukan autosave:", err);
+                // Anda bisa tambahkan toast error non-intrusif di sini jika mau
+                // toast.error("Gagal simpan progress.", { duration: 1000 });
+            }
+        }, 2000); // 2000ms = 2 detik
+
+        // Ini adalah 'cleanup function'.
+        // Jika siswa mengetik lagi (answers berubah lagi) sebelum 2 detik,
+        // timer sebelumnya akan dibatalkan dan timer baru akan dibuat.
+        return () => {
+            clearTimeout(saveTimer);
+        };
+
+    }, [answers, currentSubmissionId, pageStatus]); // Dependencies: jalankan ini jika 'answers' berubah
+
+const isAllAnswered = useMemo(() => {
+                    // Jika jumlah soal dan jawaban tidak sinkron, anggap belum
+                    if (soalList.length === 0 || soalList.length !== answers.length) return false;
+
+                    // 'every' akan cek semua item. Jika 1 saja 'false', hasilnya 'false'
+                    return answers.every((answerString, index) => {
+                        const soal = soalList[index];
+                        
+                        // Untuk PG atau Esai Biasa, cek string tidak boleh kosong
+                        if (soal.tipe_soal === "Pilihan Ganda" || soal.tipe_soal === "Esai") {
+                            return answerString.trim() !== "";
+                        }
+
+                        // Untuk Esai Uraian, cek string JSON
+                        if (soal.tipe_soal === "Esai Uraian") {
+                            if (answerString.trim() === "") return false; // Belum diisi sama sekali
+                            try {
+                                const arr = JSON.parse(answerString);
+                                if (!Array.isArray(arr)) return false; // Data rusak
+                                // Cek apakah "minimal 1" input di array itu diisi
+                                // 'some' akan 'true' jika 1 saja item tidak kosong
+                                return arr.some(item => item.trim() !== "");
+                            } catch (e) {
+                                return false; // Gagal parse JSON (dianggap belum diisi)
+                            }
+                        }
+                        
+                        return false; // Tipe soal tidak dikenal
+                    });
+                }, [answers, soalList]); // Hitung ulang hanya saat 'answers' atau 'soalList' berubah
+                
 
     // --- 1. FUNGSI FETCH UTAMA (PRE-CHECKS) ---
     const fetchExamPrerequisites = useCallback(async (userUid: string) => {
@@ -180,7 +246,7 @@ const StudentExamStartPage = () => {
             const studentRef = doc(db, "students", userUid);
             const examRef = doc(db, "exams", examId);
 
-            // Ambil data siswa dan data latihan secara bersamaan
+            // Ambil data siswa dan data Ujian secara bersamaan
             const [studentSnap, examSnap] = await Promise.all([
                 getDoc(studentRef),
                 getDoc(examRef)
@@ -192,16 +258,16 @@ const StudentExamStartPage = () => {
             }
             setStudentData(studentSnap.data() as StudentData);
 
-            // Cek 2: Latihan ada?
+            // Cek 2: Ujian ada?
             if (!examSnap.exists()) {
-                throw new Error("Latihan tidak ditemukan.");
+                throw new Error("Ujian tidak ditemukan.");
             }
             const exam = { ...examSnap.data(), id: examSnap.id } as ExamData;
             setExamData(exam);
 
             // Cek 3: Ini Tipe "Tugas (Upload File)"? Jika ya, stop.
             if (exam.tipe === "Tugas (Upload File)") {
-                setError("Latihan ini adalah tipe Upload File, bukan ujian online. Silakan kembali.");
+                setError("Ujian ini adalah tipe Upload File, bukan ujian online. Silakan kembali.");
                 setPageStatus("error");
                 // Idealnya: router.replace(`/student/examPage/upload/${examId}`);
                 return;
@@ -216,12 +282,80 @@ const StudentExamStartPage = () => {
             );
             const submissionSnap = await getDocs(submissionQuery);
 
-            if (!submissionSnap.empty) {
-                // Siswa sudah mengerjakan.
-                setExistingSubmissionId(submissionSnap.docs[0].id);
-                setPageStatus("alreadyTaken");
-                return;
-            }
+if (!submissionSnap.empty) {
+                // Ada submission, mari kita cek statusnya
+                const submissionDoc = submissionSnap.docs[0];
+                const submissionData = submissionDoc.data();
+                const submissionId = submissionDoc.id;
+
+                if (submissionData.status === "dikerjakan") {
+                    // --- KASUS 1: UJIAN BENAR-BENAR SUDAH SELESAI ---
+                    setExistingSubmissionId(submissionId);
+                    setPageStatus("alreadyTaken");
+                    return; // Hentikan fungsi
+
+                } else if (submissionData.status === "sedang dikerjakan") {
+                    // --- KASUS 2: SISWA ME-REFRESH HALAMAN (BUG) ---
+                    // Kita harus melanjutkan ujiannya, bukan menganggapnya selesai.
+                    console.log("Melanjutkan ujian yang sedang berjalan (di-refresh)...");
+
+                    // 1. Ambil soal (logika yang sama seperti di luar 'if')
+                    const soalQuery = query(
+                        collection(db, "exams", examId, "soal"),
+                        orderBy("urutan", "asc")
+                    );
+                    const soalSnap = await getDocs(soalQuery);
+
+                    if (soalSnap.empty) {
+                        throw new Error("Gagal memuat soal: Ujian ini belum memiliki pertanyaan.");
+                    }
+                    const soal = soalSnap.docs.map(d => ({ ...d.data(), id: d.id } as SoalData));
+                    setSoalList(soal);
+                    
+                    // 2. Ambil jawaban yang TERSIMPAN di database
+                    const savedAnswers = submissionData.jawaban || [];
+
+                    // 3. Set state 'answers' dengan jawaban tersimpan
+                    // (Tambahkan pengecekan jika jumlah soal tidak cocok)
+                    if (savedAnswers.length === soal.length) {
+                        setAnswers(savedAnswers);
+                    } else {
+                        // Jika tidak cocok (misal guru edit soal saat ujian),
+                        // buat array baru seukuran soal.
+                      console.warn("Jumlah jawaban tersimpan tidak cocok dengan jumlah soal.");
+                        const newAnswers = new Array(soal.length).fill("");
+                       // Salin jawaban lama yang masih relevan
+                        for(let i = 0; i < Math.min(savedAnswers.length, soal.length); i++) {
+                            newAnswers[i] = savedAnswers[i];
+                        }
+                        setAnswers(newAnswers);
+                    }
+
+                    // 4. Inisialisasi flags
+                    setFlags(new Array(soal.length).fill(false));
+                    
+                    // 5. Set ID submission yang sedang aktif
+                    setCurrentSubmissionId(submissionId);
+
+                    // 6. LANGSUNG masuk ke mode "inProgress", lewati "ready"
+                    if (submissionData.waktu_mulai) {
+                        const startTime = submissionData.waktu_mulai.toDate();
+                        const totalDurationSeconds = exam.durasi_menit * 60;
+                        const now = new Date();
+                        const elapsedSeconds = Math.floor((now.getTime() - startTime.getTime()) / 1000);
+                        const newRemainingSeconds = totalDurationSeconds - elapsedSeconds;
+                        
+                        setRemainingSeconds(newRemainingSeconds);
+                    } else {
+                        // Fallback jika 'waktu_mulai' tidak ada
+                        setRemainingSeconds(exam.durasi_menit * 60);
+                    }
+
+                    // 7. LANGSUNG masuk ke mode "inProgress", lewati "ready"
+                    setPageStatus("inProgress");
+                    return; // Hentikan fungsi
+                }
+            }
 
             // Cek 5: Apakah deadline sudah lewat?
             if (exam.tanggal_selesai.toDate() < new Date()) {
@@ -231,7 +365,7 @@ const StudentExamStartPage = () => {
             
             // Cek 6: Apakah statusnya "Dipublikasi"?
             if (exam.status !== "Dipublikasi") {
-                setError("Latihan ini tidak (lagi) tersedia untuk dikerjakan.");
+                setError("Ujian ini tidak (lagi) tersedia untuk dikerjakan.");
                 setPageStatus("error");
                 return;
             }
@@ -248,7 +382,7 @@ const StudentExamStartPage = () => {
                 // Ini masalah jika jumlah soal tidak cocok
                 console.warn(`Jumlah soal di exam (${exam.jumlah_soal}) tidak cocok dengan query (${soalSnap.size})`);
                 if (soalSnap.empty) {
-                    throw new Error("Gagal memuat soal: Latihan ini belum memiliki pertanyaan.");
+                    throw new Error("Gagal memuat soal: Ujian ini belum memiliki pertanyaan.");
                 }
             }
             
@@ -267,7 +401,7 @@ const StudentExamStartPage = () => {
             setError(err.message || "Gagal memuat data ujian.");
             setPageStatus("error");
             if (err.code === 'permission-denied') {
-                setError("Izin ditolak. Anda mungkin tidak memiliki akses ke soal latihan ini. Pastikan rules Firestore Anda benar.");
+                setError("Izin ditolak. Anda mungkin tidak memiliki akses ke soal Ujian ini. Pastikan rules Firestore Anda benar.");
             }
         }
     }, [examId]);
@@ -309,6 +443,7 @@ const StudentExamStartPage = () => {
             const docRef = await addDoc(collection(db, "students_answers"), submissionData);
             setCurrentSubmissionId(docRef.id);
             setPageStatus("inProgress"); // Mulai!
+            setRemainingSeconds(examData.durasi_menit * 60);
 
         } catch (err: any) {
             console.error("Error creating submission doc:", err);
@@ -324,6 +459,43 @@ const StudentExamStartPage = () => {
         newAnswers[index] = value;
         setAnswers(newAnswers);
     };
+
+    // --- DIPERBAIKI: Handler untuk jawaban Esai Uraian ---
+    const handleUraianAnswerChange = (questionIndex: number, answerIndex: number, value: string) => {
+        const currentSoal = soalList[questionIndex];
+        const jumlahInput = currentSoal.jumlah_input || 1;
+        const currentAnswerString = answers[questionIndex];
+
+        let currentAnswersArray: string[] = [];
+
+        // 1. Coba parse jawaban yang ada (misal: "[\"ss\"]")
+        try {
+            const parsed = JSON.parse(currentAnswerString);
+            if (Array.isArray(parsed)) {
+                currentAnswersArray = parsed; // Hasil: ["ss"]
+            }
+        } catch (e) {
+            // Biarkan 'currentAnswersArray' sebagai array kosong
+        }
+
+        // 2. (FIX UTAMA) Buat array BARU dengan panjang yang BENAR (misal: 5)
+        const newArray = new Array(jumlahInput).fill("");
+
+        // 3. Salin jawaban lama ke array baru
+        for (let i = 0; i < jumlahInput; i++) {
+            newArray[i] = currentAnswersArray[i] || "";
+        }
+        // Hasil: ["ss", "", "", "", ""]
+
+        // 4. Update nilai yang sedang diketik
+        newArray[answerIndex] = value;
+        // Hasil (jika ketik "a" di input ke-2): ["ss", "a", "", "", ""]
+
+        // 5. Stringify kembali dan simpan ke state 'answers'
+        const newAnswers = [...answers];
+        newAnswers[questionIndex] = JSON.stringify(newArray);
+        setAnswers(newAnswers);
+    };
 
     const handleFlagChange = (index: number) => {
         const newFlags = [...flags];
@@ -495,6 +667,52 @@ const StudentExamStartPage = () => {
                             />
                         </div>
                     )}
+
+{/* --- BARU: BLOK ESAI URAIAN (LOGIKA DIPERBAIKI TOTAL) --- */}
+{soal.tipe_soal === "Esai Uraian" && (() => {
+// 1. Tentukan jumlah input yang SEHARUSNYA tampil (misal: 5)
+const jumlahInput = soal.jumlah_input || 1;
+
+// 2. Parse jawaban yang TERSIMPAN (misal: "[\"ss\"]")
+let savedAnswers: string[] = [];
+try {
+const parsed = JSON.parse(jawabanSiswa);
+if (Array.isArray(parsed)) {
+savedAnswers = parsed; // Hasil: ["ss"]
+}
+} catch (e) {
+// Biarkan 'savedAnswers' sebagai array kosong
+}
+
+// 3. Buat array TAMPILAN dengan panjang yang BENAR (misal: 5)
+const displayAnswers = Array.from({ length: jumlahInput }, (_, index) => {
+// Ambil jawaban dari savedAnswers, atau isi ""
+return savedAnswers[index] || ""; 
+});
+// Hasil: ["ss", "", "", "", ""]
+
+// 4. Render 'displayAnswers' (yang panjangnya 5)
+return (
+<div className="space-y-4">
+<p className="block text-sm font-medium text-gray-700">Tuliskan {jumlahInput} jawaban Anda:</p>
+{displayAnswers.map((jawaban, index) => (
+<div key={index} className="flex items-center gap-3">
+<span className="flex items-center justify-center w-6 h-6 rounded-full bg-gray-200 text-gray-700 font-semibold text-sm flex-shrink-0">
+{index + 1}
+</span>
+<input 
+type="text"
+className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+placeholder={`Jawaban ${index + 1}...`}
+value={jawaban}
+onChange={(e) => handleUraianAnswerChange(currentQuestionIndex, index, e.target.value)}
+/>
+</div>
+))}
+</div>
+);
+})()}
+
                 </div>
 
                 {/* Tombol Ragu-ragu */}
@@ -532,7 +750,7 @@ const StudentExamStartPage = () => {
                         <h2 className="mt-4 text-xl font-semibold text-gray-800">Terjadi Kesalahan</h2>
                         <p className="text-gray-600 mt-1">{error}</p>
                         <Link href="/student/examPage" className="mt-6 py-2 px-5 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700">
-                            Kembali ke Daftar Latihan
+                            Kembali ke Daftar Ujian
                         </Link>
                     </div>
                 );
@@ -560,7 +778,7 @@ const StudentExamStartPage = () => {
                         <h2 className="mt-4 text-xl font-semibold text-gray-800">Batas Waktu Terlewat</h2>
                         <p className="text-gray-600 mt-1">Batas waktu pengerjaan untuk ujian ini telah berakhir.</p>
                         <Link href="/student/examPage" className="mt-6 py-2 px-5 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700">
-                            Kembali ke Daftar Latihan
+                            Kembali ke Daftar Ujian
                         </Link>
                     </div>
                 );
@@ -617,7 +835,14 @@ const StudentExamStartPage = () => {
                 );
 
             case "inProgress":
-                if (!examData) return null; // Seharusnya tidak terjadi
+                if (!examData || remainingSeconds === null) {
+                    return(
+                        <div className='flex flex-col justify-center items-center h-[80vh]'>
+                            <Loader2 className="w-12 h-12 animate-spin text-blue-600" />
+                        </div>
+                    );
+                    // --- BARU: Logika untuk mengecek apakah semua soal sudah terjawab ---
+                    } 
                 return (
                     <div className="flex flex-col lg:flex-row gap-6">
                         {/* Kolom Kiri (Utama): Soal */}
@@ -632,7 +857,7 @@ const StudentExamStartPage = () => {
                                 <div className="bg-white p-4 rounded-xl shadow border border-gray-100 flex flex-col items-center">
                                     <h3 className="text-base font-semibold text-gray-800 mb-2">Sisa Waktu</h3>
                                     <TimerDisplay 
-                                        initialSeconds={examData.durasi_menit * 60} 
+                                        initialSeconds={remainingSeconds} 
                                         onTimeUp={() => handleSubmitExam(true)} 
                                     />
                                 </div>
@@ -667,13 +892,21 @@ const StudentExamStartPage = () => {
                                 </div>
 
                                 {/* Tombol Selesai */}
-                                <button
+                                {isAllAnswered ? (
+                                    <button
                                     onClick={() => handleSubmitExam(false)}
                                     className="w-full flex items-center justify-center gap-2 py-3 px-5 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition-all mt-4"
                                 >
                                     <Send className="w-5 h-5" />
                                     Selesai & Kumpulkan Ujian
                                 </button>
+                                ) : (
+                                      <div className='w-full flex items-center justify-center gap-2 py-3 px-5 bg-gray-300 text-gray-500 font-semibold rounded-lg cursor-not-allowed mt-4'>
+                                        <span>jawab semua soal terlebih dahulu</span>
+                                      </div>  
+
+                                )}
+                                
                             </div>
                         </div>
                     </div>
