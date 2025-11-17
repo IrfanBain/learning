@@ -158,7 +158,7 @@ const AdminExamPage = () => {
 
         } catch (err: any) {
             console.error("Error fetching all exams:", err);
-            let userMessage = "Gagal memuat daftar latihan. ";
+            let userMessage = "Gagal memuat daftar Ujian. ";
             if (err.code === 'permission-denied') {
                 userMessage += "Izin ditolak. Pastikan Anda login sebagai Admin.";
             } else if (err.code === 'failed-precondition') {
@@ -182,16 +182,16 @@ const AdminExamPage = () => {
 
     // Handler Hapus (tidak berubah)
     const executeDelete = async (examId: string, title: string) => {
-        const loadingToastId = toast.loading(`Menghapus latihan "${title}"...`);
+        const loadingToastId = toast.loading(`Menghapus Ujian "${title}"...`);
         try {
             await deleteDoc(doc(db, "exams", examId));
             
-            toast.success("Latihan berhasil dihapus.", { id: loadingToastId });
+            toast.success("Ujian berhasil dihapus.", { id: loadingToastId });
             fetchExamList(); 
             
         } catch (err: any) {
             console.error("Error deleting exam:", err);
-            toast.error(err.message || "Gagal menghapus latihan.", { id: loadingToastId });
+            toast.error(err.message || "Gagal menghapus Ujian.", { id: loadingToastId });
         }
     };
 
@@ -202,7 +202,7 @@ const AdminExamPage = () => {
                 <div className="flex items-start gap-3">
                     <AlertTriangle className="w-12 h-12 text-red-500 flex-shrink-0" />
                     <div>
-                        <p className="font-semibold text-gray-800">Hapus Latihan Ini?</p>
+                        <p className="font-semibold text-gray-800">Hapus Ujian Ini?</p>
                         <p className="text-sm text-gray-600">
                             Anda akan menghapus <span className="font-bold">{title}</span>. Tindakan ini tidak dapat dibatalkan.
                         </p>
@@ -252,7 +252,7 @@ const AdminExamPage = () => {
         <div className="p-4 sm:p-6 bg-gray-50 min-h-screen font-sans">
             {/* Header Halaman */}
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold text-gray-800">Manajemen Latihan (Admin)</h1>
+                <h1 className="text-3xl font-bold text-gray-800">Manajemen Ujian (Admin)</h1>
             </div>
 
             {/* Konten Error Global */}
@@ -266,7 +266,7 @@ const AdminExamPage = () => {
             {/* --- MODIFIKASI: Tampilan Daftar Latihan --- */}
             <div className="bg-white p-4 sm:p-6 rounded-xl shadow-md border border-gray-100">
                 <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-4 gap-4">
-                    <h2 className="text-xl font-semibold text-gray-800">Semua Latihan ({filteredExamList.length})</h2>
+                    <h2 className="text-xl font-semibold text-gray-800">Semua Ujian ({filteredExamList.length})</h2>
                     
                     {/* --- BARU: Filter Dropdowns --- */}
                     <div className="flex flex-col sm:flex-row gap-3">
@@ -296,16 +296,16 @@ const AdminExamPage = () => {
                 {loading ? (
                     <div className="flex justify-center items-center h-60">
                         <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-                        <span className="ml-3 text-gray-600">Memuat semua latihan...</span>
+                        <span className="ml-3 text-gray-600">Memuat semua Ujian...</span>
                     </div>
                 // --- MODIFIKASI: Cek filteredExamList.length ---
                 ) : filteredExamList.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-60 text-gray-500">
                         <FileText className="w-16 h-16 text-gray-300" />
-                        <h3 className="text-xl font-semibold mt-4">Tidak Ada Latihan</h3>
+                        <h3 className="text-xl font-semibold mt-4">Tidak Ada Ujian</h3>
                         {/* --- BARU: Pesan dinamis --- */}
                         <p className="text-center">
-                            {examList.length > 0 ? "Tidak ada latihan yang cocok dengan filter Anda." : "Belum ada guru yang membuat latihan."}
+                            {examList.length > 0 ? "Tidak ada Ujian yang cocok dengan filter Anda." : "Belum ada guru yang membuat Ujian."}
                         </p>
                     </div>
                 ) : (
@@ -394,13 +394,13 @@ const AdminExamListItem = ({ exam, onDelete }: { exam: ExamDoc, onDelete: (id: s
                     </Link>
                 )}
                
-                <button 
+                {/* <button 
                     onClick={() => onDelete(exam.id, exam.judul)}
-                    title="Hapus Latihan Ini"
+                    title="Hapus Ujian Ini"
                     className="flex items-center gap-1.5 text-sm text-red-500 hover:text-red-700 font-medium py-1 px-2 rounded-md hover:bg-red-50"
                 >
                     <Trash2 className="w-4 h-4" />
-                </button>
+                </button> */}
             </div>
         </div>
     );

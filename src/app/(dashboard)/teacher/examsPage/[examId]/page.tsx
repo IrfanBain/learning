@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '@/context/authContext'; 
 import { db } from '@/lib/firebaseConfig'; 
 import { 
@@ -138,6 +138,7 @@ const TeacherExamManagePage = () => {
     const [newDeadline, setNewDeadline] = useState("");
     const [deadlineLoading, setDeadlineLoading] = useState(false);
     const [editingSoal, setEditingSoal] = useState<SoalData | null>(null);
+    const formRef = useRef<HTMLDivElement>(null);
 
     const examDocRef = useMemo(() => doc(db, "exams", examId), [examId]);
 
@@ -377,75 +378,78 @@ if (examData?.status !== 'Draft') {
  toast.error("Hanya bisa mengedit soal dalam mode Draft.");
  return;
  }
-        
-        setEditingSoal(soal); // Set soal yang aktif diedit
-        
-        // Isi form di kiri dengan data soal yang dipilih
-        if (soal.tipe_soal === 'Pilihan Ganda' && soal.opsi) {
-            setFormData({
-                pertanyaan: soal.pertanyaan,
-                poin: soal.poin,
-                opsiA: soal.opsi['A'] || "",
-                opsiB: soal.opsi['B'] || "",
-                opsiC: soal.opsi['C'] || "",
-                opsiD: soal.opsi['D'] || "",
-                kunci_jawaban: (soal.kunci_jawaban as "A" | "B" | "C" | "D") || "A",
-                rubrik_penilaian: "", // Kosongkan rubrik untuk PG
-            });
-        } else if (soal.tipe_soal === 'Esai') { // Esai Biasa
-            setFormData({
-                pertanyaan: soal.pertanyaan,
-                poin: soal.poin,
-                opsiA: "", opsiB: "", opsiC: "", opsiD: "",
-                kunci_jawaban: "A",
-                rubrik_penilaian: soal.rubrik_penilaian || "",
-                jumlah_input: 1, // Reset ke default
-            });
-        } else if (soal.tipe_soal === 'Esai Uraian') {
-            setFormData({
-                pertanyaan: soal.pertanyaan,
-                poin: soal.poin,
-                opsiA: "", opsiB: "", opsiC: "", opsiD: "",
-                kunci_jawaban: "A",
- rubrik_penilaian: soal.rubrik_penilaian || "", // Reset ke default
-                jumlah_input: soal.jumlah_input || 1, // Isi dari data soal
-            });
-        }
 
-        // Scroll ke atas agar form terlihat (opsional tapi bagus)
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        toast("Mode edit aktif. Silakan ubah soal di formulir.", {
-            icon: <Edit2 className="text-blue-500" />
-        });
-    };
-    
-    const executeDelete = async (soalId: string, urutan: number) => {
-    // ... (tidak berubah)
-        const loadingToastId = toast.loading(`Menghapus soal nomor ${urutan}...`);
-        try {
-            const soalDocRef = doc(db, "exams", examId, "soal", soalId);
-            await deleteDoc(soalDocRef);
-            await updateDoc(examDocRef, { jumlah_soal: increment(-1) });
-            const soalCollectionRef = collection(db, "exams", examId, "soal");
-            const q = query(soalCollectionRef, where("urutan", ">", urutan));
-            
-            const querySnapshot = await getDocs(q);
-            
-            if (!querySnapshot.empty) {
-                // 2. Gunakan batch write untuk update semua sekaligus
-                const batch = writeBatch(db);
-                
-                querySnapshot.forEach((doc) => {
-                    // Kurangi 'urutan' dengan 1
-                    batch.update(doc.ref, { urutan: increment(-1) });
-                });
-                
-                // 3. Commit batch
-                await batch.commit();
-                
-            } else {
-               
-            }
+setEditingSoal(soal); // Set soal yang aktif diedit
+
+// Isi form di kiri dengan data soal yang dipilih
+if (soal.tipe_soal === 'Pilihan Ganda' && soal.opsi) {
+ setFormData({
+pertanyaan: soal.pertanyaan,
+poin: soal.poin,
+ opsiA: soal.opsi['A'] || "",
+opsiB: soal.opsi['B'] || "",
+opsiC: soal.opsi['C'] || "",
+opsiD: soal.opsi['D'] || "",
+kunci_jawaban: (soal.kunci_jawaban as "A" | "B" | "C" | "D") || "A",
+ rubrik_penilaian: "", // Kosongkan rubrik untuk PG
+ });
+ } else if (soal.tipe_soal === 'Esai') { // Esai Biasa
+ setFormData({
+pertanyaan: soal.pertanyaan,
+poin: soal.poin,
+opsiA: "", opsiB: "", opsiC: "", opsiD: "",
+kunci_jawaban: "A",
+rubrik_penilaian: soal.rubrik_penilaian || "",
+jumlah_input: 1, // Reset ke default
+ });
+} else if (soal.tipe_soal === 'Esai Uraian') {
+setFormData({
+ pertanyaan: soal.pertanyaan,
+poin: soal.poin,
+ opsiA: "", opsiB: "", opsiC: "", opsiD: "",
+ kunci_jawaban: "A",
+ rubrik_penilaian: soal.rubrik_penilaian || "", // Reset ke default
+jumlah_input: soal.jumlah_input || 1, // Isi dari data soal
+});
+}
+
+ // Scroll ke atas agar form terlihat (opsional tapi bagus)
+window.scrollTo({ top: 0, behavior: 'smooth' });
+if (formRef.current) {
+    formRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+ toast("Mode edit aktif. Silakan ubah soal di formulir.", {
+icon: <Edit2 className="text-blue-500" />
+ });
+};
+
+const executeDelete = async (soalId: string, urutan: number) => {
+// ... (tidak berubah)
+const loadingToastId = toast.loading(`Menghapus soal nomor ${urutan}...`);
+try {
+const soalDocRef = doc(db, "exams", examId, "soal", soalId);
+await deleteDoc(soalDocRef);
+await updateDoc(examDocRef, { jumlah_soal: increment(-1) });
+ const soalCollectionRef = collection(db, "exams", examId, "soal");
+const q = query(soalCollectionRef, where("urutan", ">", urutan));
+
+ const querySnapshot = await getDocs(q);
+
+if (!querySnapshot.empty) {
+// 2. Gunakan batch write untuk update semua sekaligus
+const batch = writeBatch(db);
+
+ querySnapshot.forEach((doc) => {
+   // Kurangi 'urutan' dengan 1
+   batch.update(doc.ref, { urutan: increment(-1) });
+ });
+
+ // 3. Commit batch
+ await batch.commit();
+ 
+      } else {
+
+      }
             toast.success(`Soal nomor ${urutan} berhasil dihapus.`, { id: loadingToastId });
             
             fetchSoalList(); 
@@ -737,10 +741,10 @@ if (examData?.status !== 'Draft') {
                 />
             </div>
 
-            <div className="flex flex-col lg:flex-row gap-6">
+            <div className="flex flex-col lg:flex-row gap-6 lg:items-start">
                 
                 <div className="w-full lg:w-1/3">
-                    <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100 sticky top-0 self-start">
+                    <div ref={formRef} className="bg-white p-6 rounded-xl shadow-md border border-gray-100">
                         {examData.status !== 'Draft' ? (
 
                             <div className={`p-4 border-l-4 rounded-md mb-4 ${

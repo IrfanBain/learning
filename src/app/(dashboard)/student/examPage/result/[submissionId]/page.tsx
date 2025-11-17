@@ -332,7 +332,14 @@ const StudentResultPage = () => {
                                     <span className="text-sm font-semibold text-green-600 bg-green-100 px-3 py-1 rounded-full">Benar</span>
                                 )}
                                 {soal.tipe_soal === 'Pilihan Ganda' && studentAnswer !== correctAnswer && (
-                                    <span className="text-sm font-semibold text-red-600 bg-red-100 px-3 py-1 rounded-full">Salah</span>
+                                // --- BARU: Cek apakah jawabannya kosong ---
+                                (studentAnswer === "" || studentAnswer === null || studentAnswer === undefined) ? (
+                                    // Jika tidak dijawab
+                                    <span className="text-sm font-semibold text-gray-600 bg-gray-100 px-3 py-1 rounded-full">Tidak menjawab</span>
+                                ) : (
+                                    // Jika dijawab tapi salah
+                                <span className="text-sm font-semibold text-red-600 bg-red-100 px-3 py-1 rounded-full">Salah</span>
+                                )
                                 )}
                                 {soal.tipe_soal === 'Esai' && (
                                     <span className="text-sm font-semibold text-blue-600 bg-blue-100 px-3 py-1 rounded-full">Esai</span>

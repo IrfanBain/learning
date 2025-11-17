@@ -45,13 +45,13 @@ const LatihanTerbaru = () => {
   }, []);
 
   if (loading) {
-    return <div className="p-4 bg-white rounded-lg shadow">Memuat latihan...</div>;
+    return <div className="p-4 bg-white rounded-lg shadow">Memuat Ujian...</div>;
   }
 
   return (
     <div className="p-4 bg-white rounded-lg shadow">
       <div className="flex justify-between items-center mb-2">
-        <h2 className="text-lg font-semibold">Latihan Baru Ditambahkan</h2>
+        <h2 className="text-lg font-semibold">Ujian Baru Ditambahkan</h2>
         {/* <span className="text-sm text-blue-500 cursor-pointer">Lihat Semua</span> */}
       </div>
       
@@ -69,7 +69,7 @@ const LatihanTerbaru = () => {
             </div>
           ))
         ) : (
-          <p className="text-sm text-gray-500">Belum ada latihan baru.</p>
+          <p className="text-sm text-gray-500">Belum ada Ujian baru.</p>
         )}
       </div>
     </div>

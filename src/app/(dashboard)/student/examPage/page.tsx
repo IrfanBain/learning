@@ -117,18 +117,35 @@ const StudentExamPage = () => {
 
                 let mergedData: MergedExamData = { ...examData };
 
-                if (submission) {
-                    mergedData.submission = submission;
-                    mergedData.customStatus = "Selesai";
-                } else {
-                    if (examData.status === "Dipublikasi" && now < deadline) {
-                        mergedData.customStatus = "Tersedia";
-                    } else if (examData.status === "Dipublikasi" && now >= deadline) {
-                        mergedData.customStatus = "Terlewat";
-                    } else if (examData.status === "Ditutup") {
-                        mergedData.customStatus = "Ditutup";
-                    }
-                }
+    if (submission && submission.status === 'dikerjakan') {
+          // KASUS 1: Benar-benar sudah selesai
+          mergedData.submission = submission;
+          mergedData.customStatus = "Selesai";
+        
+        } else if (submission && submission.status === 'sedang dikerjakan') {
+          // KASUS 2: Ditinggal (Back/Refresh). Anggap sebagai "Tersedia"
+          // agar bisa dilanjutkan (logic resume di halaman start akan bekerja)
+          mergedData.submission = submission; // Bawa data submission
+          
+          if (examData.status === "Dipublikasi" && now < deadline) {
+            mergedData.customStatus = "Tersedia";
+          } else {
+            // Ditinggal DAN deadline-nya keburu habis
+            mergedData.customStatus = "Terlewat"; 
+          }
+
+        } else {
+          // KASUS 3: Belum pernah disentuh SAMA SEKALI
+          mergedData.submission = undefined; // Pastikan tidak ada data submission
+          
+          if (examData.status === "Dipublikasi" && now < deadline) {
+            mergedData.customStatus = "Tersedia";
+          } else if (examData.status === "Dipublikasi" && now >= deadline) {
+            mergedData.customStatus = "Terlewat";
+          } else if (examData.status === "Ditutup") {
+            mergedData.customStatus = "Ditutup";
+          }
+        }
 
                 const [mapelNama, guruNama] = await Promise.all([
                     getRefName(examData.mapel_ref, 'nama_mapel'),
@@ -272,7 +289,7 @@ const ExamCard = ({ exam }: { exam: MergedExamData }) => {
                     href={`/student/examPage/start/${exam.id}`} 
                     className="flex items-center justify-center gap-2 py-2 px-4 text-sm font-semibold bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-all"
                 >
-                    Mulai Kerjakan <ArrowRight className="w-4 h-4" />
+                    {exam.submission ? 'Lanjutkan' : 'Mulai Kerjakan'} <ArrowRight className="w-4 h-4" />
                 </Link>
             );
             break;

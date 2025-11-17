@@ -91,6 +91,7 @@ const StudentResultPage = () => {
     // --- BARU: State untuk penilaian esai ---
     const [essayScores, setEssayScores] = useState<EssayScoresState>({});
     const [isSaving, setIsSaving] = useState(false);
+    const [manualPgScore, setManualPgScore] = useState<number | string>("");
 
     // --- BARU: Memo untuk menghitung total skor esai saat ini ---
     const currentTotalEssayScore = useMemo(() => {
@@ -260,6 +261,38 @@ const StudentResultPage = () => {
         }
     };
 
+    const handleSaveManualPgScore = async () => {
+    if (!submission || manualPgScore === "") return;
+    
+    const score = Number(manualPgScore);
+    if (isNaN(score) || score < 0 || score > 100) {
+      toast.error("Nilai harus berupa angka antara 0 dan 100.");
+      return;
+    }
+
+    setIsSaving(true);
+    const loadingToastId = toast.loading("Menyimpan nilai manual PG...");
+
+    try {
+      const subRef = doc(db, "students_answers", submissionId);
+      await updateDoc(subRef, {
+        nilai_akhir: score // Simpan skor manual ke nilai_akhir
+      });
+
+      // Perbarui state submission secara lokal agar UI update
+      setSubmission(prev => prev ? { ...prev, nilai_akhir: score } : null);
+      setManualPgScore(""); // Kosongkan input
+      
+      toast.success("Nilai manual PG berhasil disimpan!", { id: loadingToastId });
+      
+    } catch (err: any) {
+      console.error("Error saving manual PG score:", err);
+      toast.error(err.message || "Gagal menyimpan nilai.", { id: loadingToastId });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
 
     if (loading || authLoading) {
         // ... (render loading tidak berubah)
@@ -296,7 +329,7 @@ const StudentResultPage = () => {
 
     return (
         // --- MODIFIKASI: Tambah padding-bottom jika ada panel simpan ---
-        <div className={`relative p-4 sm:p-6 bg-gray-50 min-h-screen font-sans ${(exam.tipe === 'Esai' || exam.tipe === 'Esai Uraian') ? 'pb-48' : ''}`}>
+        <div className={`relative p-4 sm:p-6 bg-gray-50 min-h-screen font-sans ${(exam.tipe === 'Esai' || exam.tipe === 'Esai Uraian' || exam.tipe === 'Pilihan Ganda') ? 'pb-48' : ''}`}>
             <button 
                 onClick={() => router.back()}
                 className="flex items-center gap-2 text-blue-600 hover:text-blue-800 mb-4 font-medium">
@@ -323,7 +356,7 @@ const StudentResultPage = () => {
                         {exam.tipe === 'Pilihan Ganda' && (
                             <>
                                 <p className="text-sm text-gray-500">Nilai Akhir (Pilihan Ganda)</p>
-                                <p className="text-4xl font-bold text-blue-600">{submission.nilai_akhir ?? 'N/A'}</p>
+                                <p className="text-4xl font-bold text-blue-600">{manualPgScore !== "" ? manualPgScore : (submission.nilai_akhir ?? '-')}</p>
                             </>
                         )}
                         {(exam.tipe === 'Esai' || exam.tipe === "Esai Uraian") && (
@@ -365,7 +398,38 @@ const StudentResultPage = () => {
                 </div>
             </div>
 
-            {/* Daftar Soal & Jawaban */}
+            
+            {exam.tipe === 'Pilihan Ganda' && (
+        <div className="bg-white p-4 rounded-xl shadow-md border border-gray-100 mb-6">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
+            <div className="w-full sm:w-auto">
+              <label htmlFor="manual-pg-score" className="block text-sm font-medium text-gray-700">
+                Beri Nilai Manual (0-100)
+              </label>
+              <input
+                id="manual-pg-score"
+                type="number"
+                value={manualPgScore}
+                onChange={(e) => setManualPgScore(e.target.value)}
+                min={0}
+                max={100}
+                className="mt-1 w-full sm:w-32 px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                placeholder={submission.nilai_akhir?.toString() ?? "0"}
+             />
+            </div>
+            <button
+              onClick={handleSaveManualPgScore}
+              disabled={isSaving}
+              className="flex items-center justify-center gap-2 w-full sm:w-auto py-2 px-6 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 disabled:opacity-50"
+            >
+              {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+              Simpan Nilai Manual
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Daftar Soal & Jawaban */}
             <h2 className="text-xl font-semibold text-gray-800 mb-4">Tinjauan Jawaban</h2>
             <div className="space-y-4">
                 {soalList.map((soal, index) => {
@@ -395,8 +459,15 @@ const StudentResultPage = () => {
                                     <span className="text-sm font-semibold text-green-600 bg-green-100 px-3 py-1 rounded-full">Benar</span>
                                 )}
                                 {soal.tipe_soal === 'Pilihan Ganda' && studentAnswer !== correctAnswer && (
-                                    <span className="text-sm font-semibold text-red-600 bg-red-100 px-3 py-1 rounded-full">Salah</span>
-                                )}
+                                    // --- BARU: Cek apakah jawabannya kosong ---
+                                    (studentAnswer === "" || studentAnswer === null || studentAnswer === undefined) ? (
+                                        // Jika tidak dijawab
+                                        <span className="text-sm font-semibold text-gray-600 bg-yellow-100 px-3 py-1 rounded-full">Tidak menjawab</span>
+                                    ) : (
+                                        // Jika dijawab tapi salah
+                                        <span className="text-sm font-semibold text-red-600 bg-red-100 px-3 py-1 rounded-full">Salah</span>
+                                    )
+                                    )}
                                 {(soal.tipe_soal === 'Esai' || soal.tipe_soal === 'Esai Uraian') && (
                                     <span className="text-sm font-semibold text-blue-600 bg-blue-100 px-3 py-1 rounded-full">Esai</span>
                                 )}
@@ -439,6 +510,7 @@ const StudentResultPage = () => {
             </div>
 
             {/* --- BARU: Panel Simpan Nilai Esai (Sticky) --- */}
+       
             {(exam.tipe === 'Esai' || exam.tipe === 'Esai Uraian') && (
                 <div className=" bottom-5 left-7 right-7 bg-white p-4 border-t border-gray-200 shadow-lg rounded-md mt-5">
                     <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-3">
