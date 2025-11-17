@@ -15,12 +15,13 @@ import {
     serverTimestamp, 
     DocumentReference,
     Timestamp,
+    updateDoc,
     deleteDoc,
     writeBatch
 } from 'firebase/firestore'; // <-- Impor ASLI
 
 // Import ikon-ikon
-import { PlusSquare, Trash2, List, CheckCircle, Clock, XCircle, ChevronRight, Loader2, FileText, AlertTriangle, Award } from 'lucide-react';
+import { PlusSquare, Trash2, Edit2, List, CheckCircle, Clock, XCircle, ChevronRight, Loader2, FileText, AlertTriangle, Award } from 'lucide-react';
 import { toast } from 'react-hot-toast'; // <-- Asumsi Anda pakai 'sonner' untuk notifikasi
 import Link from 'next/link';
 
@@ -87,6 +88,7 @@ const TeacherExamPage = () => {
     const [availableMapel, setAvailableMapel] = useState<DropdownItem[]>([]);
     const [availableKelas, setAvailableKelas] = useState<DropdownItem[]>([]);
     const [formData, setFormData] = useState<ExamFormData>(initialFormData);
+    const [editingExamId, setEditingExamId] = useState<string | null>(null);
 
     // --- PENGAMBILAN DATA (FETCHING) ---
 
@@ -237,23 +239,44 @@ const TeacherExamPage = () => {
             }
 
             // Siapkan data untuk disimpan
-            const examDataToSave = {
-                judul: formData.judul,
-                deskripsi: formData.deskripsi,
-                tipe: formData.tipe,
-                mapel_ref: doc(db, "subjects", formData.mapel_ref),
-                kelas_ref: doc(db, "classes", formData.kelas_ref),
-                guru_ref: doc(db, "teachers", user.uid),
-                tanggal_dibuat: serverTimestamp(),
-                tanggal_mulai: serverTimestamp(), // Default: mulai sekarang
-                tanggal_selesai: Timestamp.fromDate(new Date(formData.tanggal_selesai)),
-                durasi_menit: formData.durasi_menit,
-                status: "Draft", // Selalu 'Draft' saat pertama dibuat
-                jumlah_soal: 0, // Default 0, akan di-update saat menambah soal
-            };
-            
-            // Simpan ke Firestore
-            const docRef = await addDoc(collection(db, "exams"), examDataToSave);
+        const examDataToSave = {
+        judul: formData.judul,
+        deskripsi: formData.deskripsi,
+        tipe: formData.tipe,
+        mapel_ref: doc(db, "subjects", formData.mapel_ref),
+        kelas_ref: doc(db, "classes", formData.kelas_ref),
+        guru_ref: doc(db, "teachers", user.uid),
+        tanggal_selesai: Timestamp.fromDate(new Date(formData.tanggal_selesai)),
+        durasi_menit: formData.durasi_menit,
+      };
+
+      // --- MODIFIKASI: Cek apakah ini EDIT atau CREATE ---
+      if (editingExamId) {
+        // --- LOGIKA UPDATE (EDIT) ---
+        const examRef = doc(db, "exams", editingExamId);
+        await updateDoc(examRef, {
+          ...examDataToSave
+          // Kita tidak mengubah status atau jumlah_soal saat mengedit
+        });
+        
+        toast.success("Info Ujian Berhasil Diperbarui!");
+        // Tidak perlu router.push, cukup kembali ke list
+        setEditingExamId(null);
+        setFormData(initialFormData);
+        setView('list');
+        fetchExamList(user.uid); // Refresh data list
+
+      } else {
+        // --- LOGIKA CREATE (YANG SUDAH ADA) ---
+        const examDataToCreate = {
+          ...examDataToSave,
+          tanggal_dibuat: serverTimestamp(),
+          tanggal_mulai: serverTimestamp(),
+          status: "Draft", 
+          jumlah_soal: 0, 
+        };
+        
+        const docRef = await addDoc(collection(db, "exams"), examDataToCreate);
             
             toast.success("Info Ujian Berhasil Disimpan!", {
                 duration: 3000, // 2 detik
@@ -261,7 +284,9 @@ const TeacherExamPage = () => {
             setTimeout(() => {
                 router.push(`/teacher/examsPage/${docRef.id}`);
             }, 1000);
-        } catch (err: any) {
+        } 
+    }
+    catch (err: any) {
             console.error("Error creating exam:", err);
             toast.error(err.message || "Gagal menyimpan Ujian.");
             setError(err.message);
@@ -340,6 +365,47 @@ toast.dismiss(t.id);
  );
 };
 
+const handleCancelEdit = () => {
+    setEditingExamId(null);  // Hapus ID yang diedit
+    setFormData(initialFormData); // Kosongkan form
+    setView('list');      // Kembali ke daftar
+  };
+
+  // --- MODIFIKASI: Fungsi untuk menangani klik edit ---
+  const handleEditExam = (exam: ExamDoc) => {
+    // 1. Cek status (sesuai permintaan Anda)
+    if (exam.status !== 'Draft') {
+      toast.error("Harap kembalikan Ujian ke status 'Draft' terlebih dahulu untuk mengedit.", {
+        icon: <AlertTriangle className="text-red-500" />
+      });
+      return; // Hentikan fungsi
+    }
+
+    // 2. Jika 'Draft', siapkan form untuk diedit
+//     console.log("Mengedit:", exam);
+   
+    // 3. Konversi Timestamp ke string YYYY-MM-DDTHH:MM
+    const deadlineString = exam.tanggal_selesai.toDate().toISOString().slice(0, 16);
+   
+    // 4. Isi state form dengan data ujian yang ada
+    setFormData({
+      judul: exam.judul,
+      deskripsi: exam.deskripsi,
+      tipe: exam.tipe,
+      mapel_ref: exam.mapel_ref.id, // Simpan ID-nya saja
+      kelas_ref: exam.kelas_ref.id, // Simpan ID-nya saja
+      tanggal_selesai: deadlineString,
+      // durasi_menit mungkin tidak ada di ExamDoc, tambahkan jika perlu
+      durasi_menit: (exam as any).durasi_menit || 60 
+    });
+   
+    // 5. Set ID ujian yang sedang diedit
+    setEditingExamId(exam.id);
+   
+    // 6. Pindahkan view ke form
+    setView('create');
+  };
+
     // --- TAMPILAN (RENDER) ---
 return (
         <div className="p-4 sm:p-6 bg-gray-50 min-h-screen font-sans">
@@ -374,8 +440,16 @@ return (
                             : 'bg-white text-gray-600 hover:bg-gray-100 border'
                         }`}
                     >
-                        <PlusSquare className="w-5 h-5" />
-                        <span>Buat Ujian Baru</span>
+                        {editingExamId ? (
+              <Edit2 className="w-5 h-5" />
+            ) : (
+              <PlusSquare className="w-5 h-5" />
+            )}
+            
+            {/* --- BARU: Teks Dinamis --- */}
+            <span>
+              {editingExamId ? "Edit Ujian" : "Buat Ujian Baru"}
+            </span>
                     </button>
                 </div>
             </div>
@@ -406,7 +480,7 @@ return (
                     ) : (
                         <div className="space-y-3">
                             {examList.map(exam => (
-                                <ExamListItem key={exam.id} exam={exam} onDelete={handleDeleteExam} />
+                                <ExamListItem key={exam.id} exam={exam} onDelete={handleDeleteExam} onEdit={handleEditExam} />
                             ))}
                         </div>
                     )}
@@ -417,7 +491,7 @@ return (
             {view === 'create' && (
                 // (Form ini sudah responsif karena menggunakan md:grid-cols-2)
                 <div className="bg-white p-4 sm:p-6 rounded-xl shadow-md border border-gray-100">
-                    <h2 className="text-xl font-semibold text-gray-800 mb-4">Buat Ujian Baru (Informasi Umum)</h2>
+                    <h2 className="text-xl font-semibold text-gray-800 mb-4">{editingExamId ? "Edit Informasi Ujian" : "Buat Ujian Baru (Informasi Umum)"}</h2>
                     <p className="text-sm text-gray-500 mb-6">
                         <AlertTriangle className="w-4 h-4 inline-block mr-2 text-yellow-500" />
                         Anda akan membuat sampul Ujiannya terlebih dahulu. Soal-soal akan ditambahkan di langkah berikutnya (di halaman edit).
@@ -447,8 +521,9 @@ return (
                                         name="tipe"
                                         value={formData.tipe}
                                         onChange={handleFormChange}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                                         required
+                                        disabled={!!editingExamId}
                                     >
                                         <option value="Pilihan Ganda">Pilihan Ganda</option>
                                         <option value="Esai">Esai</option>
@@ -534,21 +609,32 @@ return (
                         </div>
                         
                         {/* Tombol Aksi */}
-                        <div className="flex justify-end pt-4">
-                            <button
-                                type="submit"
-                                disabled={formLoading}
-                                // RESPONSIF: Tambahkan w-full sm:w-auto
-                                className="flex items-center justify-center gap-2 py-2 px-6 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 w-full sm:w-auto"
-                            >
-                                {formLoading ? (
-                                    <Loader2 className="w-5 h-5 animate-spin" />
-                                ) : (
-                                    <CheckCircle className="w-5 h-5" />
-                                )}
-                                <span>Simpan & Lanjut Tambah Soal</span>
-                            </button>
-                        </div>
+            <div className="flex justify-end gap-3 items-center pt-4">
+              {/* Tombol Batal (Hanya muncul saat edit) */}
+              {editingExamId && (
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className="py-2 px-5 bg-gray-200 text-gray-800 font-semibold rounded-lg hover:bg-gray-300 disabled:opacity-50"
+                >
+                  Batal 
+                </button>
+              )} 
+
+              {/* Tombol Simpan (Dinamis) */}
+              <button
+                type="submit"
+                disabled={formLoading}
+                className="flex items-center justify-center gap-2 py-2 px-6 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 w-full sm:w-auto"
+              >
+                {formLoading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <CheckCircle className="w-5 h-5" />
+                )}
+                <span>{editingExamId ? "Simpan Perubahan" : "Simpan & Lanjut Tambah Soal"}</span>
+             </button>
+            </div>
                     </form>
                 </div>
             )}
@@ -559,7 +645,7 @@ return (
 // --- KOMPONEN PENDUKUNG ---
 
 // Komponen kecil untuk menampilkan satu item Ujian di daftar
-const ExamListItem = ({ exam, onDelete }: { exam: ExamDoc, onDelete: (examId: string, examJudul: string) => void }) => {
+const ExamListItem = ({ exam, onDelete, onEdit }: { exam: ExamDoc, onDelete: (examId: string, examJudul: string) => void, onEdit: (exam: ExamDoc) => void }) => {
     const getStatusChip = (status: string) => {
         switch (status) {
             case 'Dipublikasi':
@@ -630,12 +716,24 @@ const ExamListItem = ({ exam, onDelete }: { exam: ExamDoc, onDelete: (examId: st
                 >
                     Kelola Soal <ChevronRight className="w-4 h-4" />
                 </Link>
-                <button
-                onClick={() => onDelete(exam.id, exam.judul)}
-                className="flex items-center justify-center sm:justify-start gap-1 text-sm text-red-600 hover:text-red-800 font-medium w-full sm:w-auto"
-                >
-                    <Trash2 className="w-4 h-4" /> Hapus
-                </button>
+                {/* --- GRUP TOMBOL AKSI (EDIT & HAPUS) --- */}
+        <div className="flex flex-col gap-1 w-full sm:w-auto">
+          {/* Tombol Edit Baru */}
+          <button
+            onClick={() => onEdit(exam)} // Panggil handler baru
+            className="flex items-center justify-center sm:justify-start gap-1.5 text-sm text-yellow-600 hover:text-yellow-800 font-medium py-1 px-2 rounded-md hover:bg-yellow-50 w-full"
+          >
+            <Edit2 className="w-4 h-4" /> Edit
+          </button>
+          
+          {/* Tombol Hapus Lama (dimasukkan ke div) */}
+          <button
+            onClick={() => onDelete(exam.id, exam.judul)}
+            className="flex items-center justify-center sm:justify-start gap-1.5 text-sm text-red-600 hover:text-red-800 font-medium py-1 px-2 rounded-md hover:bg-red-50 w-full"
+          >
+            <Trash2 className="w-4 h-4" /> Hapus
+          </button>
+        </div>
             </div>
         </div>
     );
