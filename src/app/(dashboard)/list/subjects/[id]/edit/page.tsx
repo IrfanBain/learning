@@ -11,7 +11,7 @@ import { ActionResult } from '@/app/actions/teacherActions'; // Impor Tipe Hasil
 import { FiArrowLeft } from 'react-icons/fi';
 
 // Opsi Tingkat (Sama seperti di Create Page)
-const TINGKAT_OPTIONS = ["7", "8", "9"]; // Pastikan ini string
+const TINGKAT_OPTIONS = ["6", "7", "8", "9"]; // Pastikan ini string
 
 // Interface Data Mapel dari Firestore (untuk fetch)
 interface SubjectFetchData {

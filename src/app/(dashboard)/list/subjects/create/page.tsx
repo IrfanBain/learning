@@ -8,7 +8,7 @@ import { ActionResult } from '@/app/actions/teacherActions'; // Impor Tipe Hasil
 import { FiArrowLeft } from 'react-icons/fi';
 
 // Opsi Tingkat (Sesuaikan jika jenjang Anda berbeda, value adalah string)
-const TINGKAT_OPTIONS = ["7", "8", "9"]; // Contoh untuk SMP & SMA
+const TINGKAT_OPTIONS = ["6", "7", "8", "9"]; // Contoh untuk SMP & SMA
 
 // Nilai Awal Form (Sesuai struktur data baru)
 const initialState: SubjectFormData = {
