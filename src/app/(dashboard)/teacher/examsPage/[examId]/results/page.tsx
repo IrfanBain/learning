@@ -39,7 +39,7 @@ declare global {
 // Tipe untuk data Ujian (Exam)
 interface ExamData {
     judul: string;
-    tipe: string;
+    tipe: "Pilihan Ganda" | "Esai" | "Esai Uraian" | "PG dan Esai" | string;
     mapel_ref: DocumentReference;
     guru_ref: DocumentReference;
     kelas_ref: DocumentReference;
@@ -57,6 +57,7 @@ interface SubmissionData {
     status: string;
     nilai_akhir?: number; // Skor PG
     nilai_esai?: number;
+    nilai_akhir_scaled?: number;
     waktu_selesai: Timestamp | null;
     studentName?: string;
     studentNisn?: string;
@@ -67,10 +68,10 @@ const getRefName = async (ref: DocumentReference, fieldName: string) => {
     try {
         const docSnap = await getDoc(ref);
         if (docSnap.exists()) {
-            return docSnap.data()[fieldName] || "N/A";
+            return docSnap.data()[fieldName] || "-";
         }
     } catch (e) { console.warn("Failed to get ref name", e); }
-    return "N/A";
+    return "-";
 };
 
 
@@ -145,82 +146,82 @@ const ExamResultsPage = () => {
             ]);
             
             const kls = kelasSnap.exists() ? kelasSnap.data() : null;
-            const kelasNama = kls ? `${kls.tingkat || ''} ${kls.nama_kelas || 'N/A'}`.trim() : "N/A";
+            const kelasNama = kls ? `${kls.tingkat || ''} ${kls.nama_kelas || '-'}`.trim() : "-";
 
             setExam({ ...examData, mapelNama, guruNama, kelasNama }); 
 
             // --- LOGIKA BARU (Berbasis Siswa) ---
 
-            // 1. Ambil SEMUA siswa di kelas ini
-            const studentsQuery = query(
-                collection(db, "students"),
-                where("kelas_ref", "==", examData.kelas_ref)
-            );
-            const studentsSnapshot = await getDocs(studentsQuery);
+      // 1. Ambil SEMUA siswa di kelas ini
+      const studentsQuery = query(
+        collection(db, "students"),
+        where("kelas_ref", "==", examData.kelas_ref)
+      );
+      const studentsSnapshot = await getDocs(studentsQuery);
 
-            // 2. Ambil SEMUA submission untuk ujian ini
-            const submissionsQuery = query(
-                collection(db, "students_answers"),
-                where("latihan_ref", "==", examRef)
-            );
-            const submissionsSnapshot = await getDocs(submissionsQuery);
+      // 2. Ambil SEMUA submission untuk ujian ini
+      const submissionsQuery = query(
+        collection(db, "students_answers"),
+        where("latihan_ref", "==", examRef)
+      );
+      const submissionsSnapshot = await getDocs(submissionsQuery);
 
-            // 3. Buat Peta (Map) dari submissions agar mudah dicari
-            const submissionMap = new Map<string, SubmissionData>();
-            submissionsSnapshot.docs.forEach(doc => {
-                const subData = doc.data() as SubmissionData;
-                submissionMap.set(subData.student_ref.id, { ...subData, id: doc.id });
-            });
+      // 3. Buat Peta (Map) dari submissions agar mudah dicari
+      const submissionMap = new Map<string, SubmissionData>();
+      submissionsSnapshot.docs.forEach(doc => {
+        const subData = doc.data() as SubmissionData;
+        submissionMap.set(subData.student_ref.id, { ...subData, id: doc.id });
+      });
 
-            // 4. Tentukan status ujian (untuk siswa yang belum mengerjakan)
-            const now = new Date();
-            const examDeadline = examData.tanggal_selesai.toDate();
+      // 4. Tentukan status ujian (untuk siswa yang belum mengerjakan)
+      const now = new Date();
+      const examDeadline = examData.tanggal_selesai.toDate();
 
-            // 5. Gabungkan data: Loop SEMUA SISWA, lalu cari submission mereka
-            const combinedResults: SubmissionData[] = [];
+      // 5. Gabungkan data: Loop SEMUA SISWA, lalu cari submission mereka
+      const combinedResults: SubmissionData[] = [];
 
-            for (const studentDoc of studentsSnapshot.docs) {
-                const studentData = studentDoc.data();
-                const studentId = studentDoc.id;
-                
-                const studentName = studentData.nama_lengkap || studentData.displayName || "Siswa Tanpa Nama";
-                const studentNisn = studentData.nisn || "";
+      for (const studentDoc of studentsSnapshot.docs) {
+        const studentData = studentDoc.data();
+        const studentId = studentDoc.id;
+       
+        const studentName = studentData.nama_lengkap || studentData.displayName || "Siswa Tanpa Nama";
+        const studentNisn = studentData.nisn || "";
 
-                const submission = submissionMap.get(studentId);
+        const submission = submissionMap.get(studentId);
 
-                if (submission) {
-                    // KASUS 1: Siswa SUDAH mengerjakan
-                    combinedResults.push({
-                        ...submission,
-                        studentName,
-                        studentNisn,
-                    });
-                } else {
-                    // KASUS 2: Siswa BELUM mengerjakan
-                    let syntheticStatus = "";
-                    if (now < examDeadline) {
-                        syntheticStatus = "Belum Mengerjakan"; // Sesuai permintaan Anda
-                    } else {
-                        syntheticStatus = "Tidak Mengerjakan"; // Sesuai permintaan Anda
-                    }
+        if (submission) {
+          // KASUS 1: Siswa SUDAH mengerjakan
+          combinedResults.push({
+            ...submission,
+            studentName,
+            studentNisn,
+          });
+        } else {
+          // KASUS 2: Siswa BELUM mengerjakan
+          let syntheticStatus = "";
+          if (now < examDeadline) {
+            syntheticStatus = "Belum Mengerjakan"; // Sesuai permintaan Anda
+          } else {
+            syntheticStatus = "Tidak Mengerjakan"; // Sesuai permintaan Anda
+          }
 
-                    combinedResults.push({
-                        id: studentId, // Gunakan ID siswa sebagai key
-                        latihan_ref: examRef,
-                        student_ref: doc(db, "students", studentId),
-                        status: syntheticStatus,
-                        nilai_akhir: undefined,
-                        nilai_esai: undefined,
-                        waktu_selesai: null,
-                        studentName,
-                        studentNisn,
-                    });
-                }
-            }
+          combinedResults.push({
+            id: studentId, // Gunakan ID siswa sebagai key
+            latihan_ref: examRef,
+            student_ref: doc(db, "students", studentId),
+            status: syntheticStatus,
+            nilai_akhir: undefined,
+            nilai_esai: undefined,
+            waktu_selesai: null,
+            studentName,
+            studentNisn,
+          });
+        }
+      }
 
-            // 6. Sortir dan simpan ke state
-            combinedResults.sort((a, b) => (b.nilai_akhir || 0) - (a.nilai_akhir || 0));
-            setSubmissions(combinedResults);
+      // 6. Sortir dan simpan ke state
+      combinedResults.sort((a, b) => (b.nilai_akhir || 0) - (a.nilai_akhir || 0));
+      setSubmissions(combinedResults);
 
         } catch (err: any) {
             console.error("Error fetching results:", err);
@@ -299,36 +300,61 @@ const ExamResultsPage = () => {
     }, [fetchResultsData]);
 
     // --- MODIFIKASI: getFormattedData ---
-    const getFormattedData = () => {
-        if (!exam) return { header: [], body: [] }; // Kembalikan array kosong jika exam belum load
+   const getFormattedData = () => {
+    if (!exam) return { header: [], body: [] };
+    
+    // Tentukan tipe ujian
+    const isMixed = exam.tipe === 'PG dan Esai';
+    const isPGOnly = exam.tipe === 'Pilihan Ganda';
+    const isEsaiOnly = exam.tipe === 'Esai' || exam.tipe === 'Esai Uraian';
 
-        const isPG = exam.tipe === 'Pilihan Ganda';
-        const isEsai = exam.tipe === 'Esai' || exam.tipe === 'Esai Uraian';
+    let header = ["No", "Nama Siswa", "NISN", "Status"];
 
-        // Buat header dinamis
-        let header = ["No", "Nama Siswa", "NISN", "Status"];
-        if (isPG) header.push("Skor PG");
-        if (isEsai) header.push("Skor Esai");
-        header.push("Tanda Tangan");
+    // LOGIC HEADER BARU:
+    if (isMixed) {
+        // PERMINTAAN 1: Tetap munculkan PG dan Esai
+        header.push("SKOR PG");
+        header.push("SKOR ESAI");
+        // PERMINTAAN 2: Tambahkan Nilai Akhir
+        header.push("NILAI AKHIR"); 
+    } else if (isPGOnly) {
+        header.push("Skor PG");
+    } else if (isEsaiOnly) {
+        header.push("Skor Esai");
+    }
+    
+    // Tanda Tangan DIHAPUS dari header export
+
+    const body = submissions.map((sub, index) => {
+        let row: (string | number | null)[] = [
+            index + 1,
+            sub.studentName || '',
+            sub.studentNisn || '',
+            sub.status === 'dikerjakan' ? 'Selesai' : sub.status,
+        ];
         
-        // Buat body dinamis
-        const body = submissions.map((sub, index) => {
-            let row: (string | number | null)[] = [
-                index + 1,
-                sub.studentName || '',
-                sub.studentNisn || '',
-                sub.status === 'dikerjakan' ? 'Selesai' : sub.status,
-            ];
-            
-            if (isPG) row.push(sub.nilai_akhir ?? 'N/A');
-            if (isEsai) row.push(sub.nilai_esai ?? 'N/A');
-            
-            row.push(""); // Kolom Tanda Tangan
-            return row;
-        });
+        // LOGIC BODY BARU:
+        if (isMixed) {
+            // 1. Skor PG (Ambil dari nilai_akhir yang menampung skor mentah PG)
+            row.push(sub.nilai_akhir ?? '-'); 
+            // 2. Skor Esai (Ambil dari nilai_esai)
+            row.push(sub.nilai_esai ?? '-');
+            // 3. Nilai Akhir (Ambil dari nilai_akhir_scaled yang dinormalisasi)
+            row.push(sub.nilai_akhir_scaled ?? 'Belum Dinilai'); 
+        } else if (isPGOnly) {
+            // Skor PG (Tipe lama)
+            row.push(sub.nilai_akhir ?? '-');
+        } else if (isEsaiOnly) {
+            // Skor Esai (Tipe lama)
+            row.push(sub.nilai_esai ?? '-');
+        }
         
-        return { header, body };
-    };
+        // Tanda Tangan DIHAPUS dari body export
+        return row;
+    });
+    
+    return { header, body };
+};
 
     // --- MODIFIKASI: handleExportExcel ---
     const handleExportExcel = () => {
@@ -347,9 +373,9 @@ const ExamResultsPage = () => {
 
             const title = [
                 [`Judul Ujian:`, exam.judul],
-                [`Mata Pelajaran:`, exam.mapelNama ?? 'N/A'],
-                [`Kelas:`, exam.kelasNama ?? 'N/A'], 
-                [`Nama Guru:`, exam.guruNama ?? 'N/A'],
+                [`Mata Pelajaran:`, exam.mapelNama ?? '-'],
+                [`Kelas:`, exam.kelasNama ?? '-'], 
+                [`Nama Guru:`, exam.guruNama ?? '-'],
                 [`Tipe:`, exam.tipe],
                 [`Tanggal Export:`, exportDate],
                 [] // Baris kosong
@@ -424,9 +450,9 @@ const ExamResultsPage = () => {
             doc.text(`Rekap Nilai: ${exam.judul}`, 14, 22);
             doc.setFontSize(11);
             doc.setTextColor(100); 
-            doc.text(`Mata Pelajaran: ${exam.mapelNama ?? 'N/A'}`, 14, 30);
-            doc.text(`Kelas: ${exam.kelasNama ?? 'N/A'}`, 14, 36); 
-            doc.text(`Nama Guru: ${exam.guruNama ?? 'N/A'}`, 14, 42); 
+            doc.text(`Mata Pelajaran: ${exam.mapelNama ?? '-'}`, 14, 30);
+            doc.text(`Kelas: ${exam.kelasNama ?? '-'}`, 14, 36); 
+            doc.text(`Nama Guru: ${exam.guruNama ?? '-'}`, 14, 42); 
             doc.text(`Tipe Ujian: ${exam.tipe}`, 14, 48); 
             doc.text(`Tanggal Export: ${exportDate}`, 14, 54); 
             
@@ -532,19 +558,24 @@ const ExamResultsPage = () => {
                                     </th>
                                     
                                     {/* --- MODIFIKASI: Kolom Skor Kondisional --- */}
-                                    {exam?.tipe === 'Pilihan Ganda' && (
+                                    {exam?.tipe === 'Pilihan Ganda'  && (
                                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Skor PG
                                         </th>
                                     )}
-                                    {(exam?.tipe === 'Esai' || exam?.tipe === 'Esai Uraian' ) && (
+                                    {(exam?.tipe === 'Esai' || exam?.tipe === 'Esai Uraian') && (
                                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Skor Esai
                                         </th>
                                     )}
-                                    
-                                    <th scope="col" className="relative px-6 py-3">
-                                        <span className="sr-only">Detail</span>
+                                    {exam?.tipe === 'PG dan Esai' && (
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Nilai Akhir
+                                        </th>
+                                    )}
+
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Detail
                                     </th>
                                 </tr>
                             </thead>
@@ -608,7 +639,7 @@ const ExamResultsPage = () => {
                                         </td>
                                         
                                         {/* --- MODIFIKASI: Tampilan Skor Kondisional --- */}
-                                        {exam?.tipe === 'Pilihan Ganda' && (
+                                        {exam?.tipe === 'Pilihan Ganda'  && (
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                                 <span className="text-lg font-bold text-blue-600">
                                                     {sub.nilai_akhir ?? '-'}
@@ -622,7 +653,15 @@ const ExamResultsPage = () => {
                                                 </span>
                                             </td>
                                         )}
-
+                                        {exam?.tipe === 'PG dan Esai' && (
+                                            <td className="px-6 py-4 whitespace-nowrap font-bold text-green-600 text-lg">
+                                                <span className="text-sm font-bold text-green-600">
+                                                     {sub.nilai_akhir_scaled ?? 'Belum Dinilai'}
+                                                </span>
+                                               
+                                            </td>
+                                        )}
+                                       
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             {/* ... (render link detail tidak berubah) ... */}
                                             {sub.status === 'dikerjakan' && (

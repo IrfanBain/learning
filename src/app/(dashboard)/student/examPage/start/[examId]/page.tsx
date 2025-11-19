@@ -54,7 +54,7 @@ interface StudentData {
 interface ExamData {
     id: string;
     judul: string;
-    tipe: "Pilihan Ganda" | "Esai" | "Tugas (Upload File)" | "Esai Uraian";
+    tipe: "Pilihan Ganda" | "Esai" | "Tugas (Upload File)" | "Esai Uraian" | "PG dan Esai";
     mapel_ref: DocumentReference;
     guru_ref: DocumentReference;
     tanggal_selesai: Timestamp;
@@ -516,25 +516,8 @@ setAnswers(newAnswers);
         setPageStatus("submitting");
         
         try {
-            // --- Kalkulasi Skor (Hanya Pilihan Ganda) ---
-            let totalPoinPG = 0;
-            let skorSiswaPG = 0;
-
-            soalList.forEach((soal, index) => {
-                if (soal.tipe_soal === "Pilihan Ganda") {
-                    totalPoinPG += soal.poin;
-                    if (soal.kunci_jawaban && answers[index] === soal.kunci_jawaban) {
-                        skorSiswaPG += soal.poin;
-                    }
-                }
-                // Soal Esai diabaikan dalam skor otomatis
-            });
-
-            // Hitung nilai akhir (0-100)
-            let nilai_akhir: number | null = null;
-            if (totalPoinPG > 0) {
-                nilai_akhir = Math.round((skorSiswaPG / totalPoinPG) * 100);
-            }
+           // --- HAPUS SELURUH LOGIKA KALKULASI SKOR PG DARI SINI (420-an) ---
+            // (Hapus total blok forEach dan perhitungan nilai_akhir)
 
             // Update dokumen student's_answer
             const submissionRef = doc(db, "students_answers", currentSubmissionId);
@@ -542,20 +525,19 @@ setAnswers(newAnswers);
                 status: "dikerjakan",
                 waktu_selesai: serverTimestamp(),
                 jawaban: answers, // Simpan array jawaban siswa
-                nilai_akhir: nilai_akhir
+                nilai_akhir: null, // <-- PENTING: Set ke null/default. Guru yang akan mengisinya nanti.
             });
 
             // Selesai! Arahkan ke halaman hasil.
             toast.success("Ujian berhasil dikumpulkan!");
             router.push(`/student/examPage/result/${currentSubmissionId}`);
-
         } catch (err: any) {
             console.error("Error submitting exam:", err);
             setError("Gagal menyimpan jawaban Anda. Cek koneksi dan hubungi guru.");
             setPageStatus("error"); // Biarkan siswa melihat errornya
             toast.error("Gagal mengirim jawaban.");
         }
-    }, [pageStatus, currentSubmissionId, examData, soalList, answers, router]);
+    }, [pageStatus, currentSubmissionId, examData,  answers, router]);
 
      const handleSubmitExam = useCallback((isTimeUp: boolean = false) => {
         if (pageStatus === 'submitting') return; // Mencegah klik ganda
@@ -619,7 +601,7 @@ setAnswers(newAnswers);
                         Soal Nomor {currentQuestionIndex + 1}
                     </span>
                     <span className="text-sm font-medium text-gray-600">
-                        (Poin: {soal.tipe_soal === 'Pilihan Ganda' ? soal.poin : 'Esai'})
+                        (Poin: {soal.poin} Poin)
                     </span>
                 </div>
                 
