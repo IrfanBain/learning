@@ -35,7 +35,7 @@ import { toast } from 'react-hot-toast';
 // Data dari koleksi 'exams'
 interface ExamData {
     judul: string;
-    tipe: "Pilihan Ganda" | "Esai" | "Tugas (Upload File)" | "Esai Uraian";
+    tipe: "Pilihan Ganda" | "Esai" | "Tugas (Upload File)" | "Esai Uraian" | "PG dan Esai";
 }
 
 // Data dari koleksi 'soal'
@@ -43,7 +43,7 @@ interface SoalData {
     id: string;
     urutan: number;
     pertanyaan: string;
-    tipe_soal: "Pilihan Ganda" | "Esai" | "Esai Uraian";
+    tipe_soal: "Pilihan Ganda" | "Esai" | "Esai Uraian" | "PG dan Esai";
     poin: number;
     opsi?: { [key: string]: string };
     kunci_jawaban?: string;
@@ -58,6 +58,7 @@ interface SubmissionData {
     latihan_ref: DocumentReference;
     nilai_akhir?: number; // Skor PG
     nilai_esai?: number;  // <-- TAMBAHKAN INI
+    nilai_akhir_scaled?: number;
     waktu_selesai: Timestamp;
     status: string;
     skor_per_soal?: { [key: string]: number };
@@ -68,7 +69,7 @@ interface StudentData {
     nama_lengkap: string;
 }
 
-const StudentResultPage = () => {
+const ExamStudentResultPage = () => {
     const params = useParams();
     const router = useRouter();
     const { user, loading: authLoading } = useAuth();
@@ -250,8 +251,8 @@ const StudentResultPage = () => {
                     <div className="text-left sm:text-right">
                         {exam.tipe === 'Pilihan Ganda' && (
                             <>
-                                <p className="text-sm text-gray-500">Nilai Akhir (Pilihan Ganda)</p>
-                                <p className="text-4xl font-bold text-blue-600">{submission.nilai_akhir ?? '-'}</p>
+                                <p className="text-md text-gray-500">Nilai Akhir (Pilihan Ganda)</p>
+                                <p className="text-xl font-bold text-blue-600">{submission.nilai_akhir ?? '-'}</p>
                             </>
                         )}
                         {(exam.tipe === 'Esai' || exam.tipe === 'Esai Uraian') && (
@@ -259,10 +260,16 @@ const StudentResultPage = () => {
                                 <p className="text-sm text-gray-500">Nilai Akhir (Esai/Uraian)</p>
                                 {/* Cek apakah nilai_esai sudah diisi (bukan null/undefined) */}
                                 {(submission.nilai_esai !== null && submission.nilai_esai !== undefined) ? (
-                                    <p className="text-4xl font-bold text-green-600">{submission.nilai_esai}</p>
+                                    <p className="text-xl font-bold text-green-600">{submission.nilai_esai}</p>
                                 ) : (
-                                    <p className="text-xl font-semibold text-yellow-600 mt-1">Menunggu Penilaian</p>
+                                    <p className="text-md font-semibold text-yellow-600 mt-1">Menunggu Penilaian</p>
                                 )}
+                            </>
+                        )}
+                        {exam.tipe === 'PG dan Esai' && (
+                            <>
+                                <p className="text-sm text-gray-500">Nilai Akhir</p>
+                                <p className="text-xl font-bold text-green-600">{submission.nilai_akhir_scaled ?? 'Menunggu Penilaian'}</p>
                             </>
                         )}
                     </div>
@@ -295,6 +302,49 @@ const StudentResultPage = () => {
                             {(submission.nilai_esai === null || submission.nilai_esai === undefined) && (
                                 <div className="flex items-center gap-2">
                                     <ClockIcon className="w-5 h-5 text-yellow-600 bg-yellow-100 p-1 rounded-full" />
+                                    <span className="font-semibold text-yellow-700">Menunggu penilaian guru</span>
+                                </div>
+                            )}
+                        </>
+                    )}
+                    {exam.tipe === 'PG dan Esai' && (
+                        <>
+                             {/* 1. Total Soal PG (Max Count) */}
+                            <div className="flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-full border border-gray-200">
+                                <FileText className="w-4 h-4 text-gray-500" />
+                                <span className="font-medium text-gray-700">
+                                    Total Soal PG: <span className="font-bold">{summary.correct + summary.incorrect}</span>
+                                </span>
+                            </div>
+
+                             {/* 2. Total Soal Esai (Max Count) */}
+                            <div className="flex items-center gap-2 px-3 py-1 bg-blue-50 rounded-full border border-blue-200">
+                                <MessageSquare className="w-4 h-4 text-blue-600" />
+                                <span className="font-medium text-blue-800">
+                                    Total Soal Esai: <span className="font-bold">{summary.essays}</span>
+                                </span>
+                            </div>
+
+                            {/* 3. Skor PG Diperoleh (Baru) */}
+                            <div className="flex items-center gap-2 px-3 py-1 bg-green-50 rounded-full border border-green-200">
+                                <Medal className="w-4 h-4 text-green-600" />
+                                <span className="font-medium text-green-800">
+                                    Skor PG Diperoleh: <span className="font-bold">{summary.totalScore} Poin</span>
+                                </span>
+                            </div>
+                            
+                            {/* 4. Skor Esai Diperoleh (Baru) */}
+                            <div className="flex items-center gap-2 px-3 py-1 bg-yellow-50 rounded-full border border-yellow-200">
+                                <MessageSquare className="w-4 h-4 text-yellow-600" />
+                                <span className="font-medium text-yellow-800">
+                                    Skor Esai Diperoleh: <span className="font-bold">{submission.nilai_esai ?? 0} Poin</span>
+                                </span>
+                            </div>
+
+                             {/* 5. Status Penilaian (Menunggu) */}
+                            {(submission.nilai_esai === null || submission.nilai_esai === undefined) && (
+                                <div className="flex items-center gap-2 px-3 py-1 bg-yellow-100 rounded-full">
+                                    <ClockIcon className="w-4 h-4 text-yellow-700" />
                                     <span className="font-semibold text-yellow-700">Menunggu penilaian guru</span>
                                 </div>
                             )}
@@ -509,5 +559,5 @@ return (
 )
 }
 
-export default StudentResultPage;
+export default ExamStudentResultPage;
 

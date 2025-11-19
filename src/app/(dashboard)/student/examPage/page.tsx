@@ -29,7 +29,7 @@ interface StudentData {
 interface ExamData {
     id: string;
     judul: string;
-    tipe: "Pilihan Ganda" | "Esai" | "Tugas (Upload File)" | "Esai Uraian";
+    tipe: "Pilihan Ganda" | "Esai" | "Tugas (Upload File)" | "Esai Uraian" | "PG dan Esai";
     mapel_ref: DocumentReference;
     guru_ref: DocumentReference;
     tanggal_selesai: Timestamp;
@@ -43,6 +43,7 @@ interface SubmissionData {
     student_ref: DocumentReference;
     nilai_akhir?: number;
     nilai_esai?: number; // <-- Pastikan ini ada
+    nilai_akhir_scaled?: number;
     status: string; 
     waktu_selesai: Timestamp;
 }
@@ -300,17 +301,23 @@ const ExamCard = ({ exam }: { exam: MergedExamData }) => {
                     <span className="text-sm text-green-700 font-semibold bg-green-100 px-3 py-1 rounded-full">
                         Selesai Dikerjakan
                     </span>
-                    
-                    {/* --- INI DIA PERBAIKANNYA --- */}
+                    {/* --- MODIFIKASI DISPLAY NILAI --- */}
                     <span className="text-base"> 
-                        Nilai: 
-                        {exam.tipe === 'Pilihan Ganda' ? (
-                            // Jika PG, tampilkan nilai_akhir (skor PG)
+                        Nilai Akhir: 
+                        
+                        {/* KASUS 1: Tipe Campuran, utamakan Nilai Akhir Skala 100 */}
+                        {exam.tipe === 'PG dan Esai' ? ( 
+                             <span className="font-bold text-purple-600 ml-1">
+                                {/* Gunakan nilai_akhir_scaled untuk skor final */}
+                                {exam.submission?.nilai_akhir_scaled ?? 'Menunggu'} 
+                            </span>
+                        ) : exam.tipe === 'Pilihan Ganda' ? ( // KASUS 2: PG Murni
+                            // Tampilkan nilai_akhir (skor PG)
                             <span className="font-bold text-blue-600 ml-1">
                                 {exam.submission?.nilai_akhir ?? '-'}
                             </span>
-                        ) : (
-                            // Jika Esai, tampilkan nilai_esai (skor Esai)
+                        ) : ( // KASUS 3: Esai Murni
+                            // Tampilkan nilai_esai (skor Esai manual)
                             <span className="font-bold text-green-600 ml-1">
                                 {exam.submission?.nilai_esai ?? 'Menunggu'}
                             </span>

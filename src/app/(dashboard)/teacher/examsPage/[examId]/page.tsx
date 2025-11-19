@@ -49,7 +49,7 @@ interface ExamData {
 // ... (tidak berubah)
     id: string;
     judul: string;
-    tipe: "Pilihan Ganda" | "Esai" | "Tugas (Upload File)" | "Esai Uraian";
+    tipe: "Pilihan Ganda" | "Esai" | "Tugas (Upload File)" | "Esai Uraian" | "PG dan Esai";
     mapel_ref: DocumentReference;
     kelas_ref: DocumentReference;
     jumlah_soal: number;
@@ -139,6 +139,7 @@ const TeacherExamManagePage = () => {
     const [deadlineLoading, setDeadlineLoading] = useState(false);
     const [editingSoal, setEditingSoal] = useState<SoalData | null>(null);
     const formRef = useRef<HTMLDivElement>(null);
+    const [activeTab, setActiveTab] = useState<"Pilihan Ganda" | "Esai" | "Esai Uraian">("Pilihan Ganda");
 
     const examDocRef = useMemo(() => doc(db, "exams", examId), [examId]);
 
@@ -243,14 +244,16 @@ const TeacherExamManagePage = () => {
         
         const nextUrutan = soalList.length + 1;
 
+        const targetTipe = examData.tipe === 'PG dan Esai' ? activeTab : examData.tipe;
+
         let newSoalData: any = {
             urutan: nextUrutan,
             pertanyaan: formData.pertanyaan,
             poin: formData.poin,
-            tipe_soal: examData.tipe === 'Pilihan Ganda' ? 'Pilihan Ganda' : examData.tipe === 'Esai Uraian' ? 'Esai Uraian' : 'Esai',
+            tipe_soal: targetTipe, // Gunakan targetTipe yang sudah dihitung
         };
         
-        if (examData.tipe === 'Pilihan Ganda') {
+        if (targetTipe === 'Pilihan Ganda') {
             if (!formData.opsiA || !formData.opsiB || !formData.opsiC || !formData.opsiD) {
                 toast.error("Semua 4 opsi jawaban harus diisi.");
                 setFormLoading(false);
@@ -263,17 +266,17 @@ const TeacherExamManagePage = () => {
                 D: formData.opsiD,
             };
             newSoalData.kunci_jawaban = formData.kunci_jawaban;
-        } else if (examData.tipe === 'Esai') {
-newSoalData.rubrik_penilaian = formData.rubrik_penilaian;
-} else if (examData.tipe === 'Esai Uraian') {
-if (!formData.jumlah_input || formData.jumlah_input < 1) {
- toast.error("Jumlah input minimal harus 1.");
-setFormLoading(false);
- return;
- }
+        } else if (targetTipe === 'Esai') {
             newSoalData.rubrik_penilaian = formData.rubrik_penilaian;
- newSoalData.jumlah_input = formData.jumlah_input;
- }
+        } else if (targetTipe === 'Esai Uraian') {
+            if (!formData.jumlah_input || formData.jumlah_input < 1) {
+                toast.error("Jumlah input minimal harus 1.");
+                setFormLoading(false);
+                return;
+            }
+            newSoalData.rubrik_penilaian = formData.rubrik_penilaian;
+            newSoalData.jumlah_input = formData.jumlah_input;
+        }
 
         try {
             const soalCollectionRef = collection(db, "exams", examId, "soal");
@@ -297,74 +300,77 @@ setFormLoading(false);
     };
 
     const handleUpdateSoal = async (e: React.FormEvent) => {
-e.preventDefault();
- if (!editingSoal || !examData) return; // Pastikan kita dalam mode edit
+            e.preventDefault();
+            if (!editingSoal || !examData) return;
 
-if (examData.status !== 'Draft') {
- toast.error("Tidak bisa menyimpan perubahan. Ujian sudah dipublikasi.");
- return;
- }
+            if (examData.status !== 'Draft') {
+                toast.error("Tidak bisa menyimpan perubahan. Ujian sudah dipublikasi.");
+                return;
+            }
 
- setFormLoading(true);
+            setFormLoading(true);
 
- let updatedSoalData: any = {
- // 'urutan' tidak perlu diubah
- pertanyaan: formData.pertanyaan,
- poin: formData.poin,
- // 'tipe_soal' juga tidak berubah
- };
+            // --- LOGIC BARU: Tentukan tipe target ---
+            const targetTipe = examData.tipe === 'PG dan Esai' ? activeTab : examData.tipe;
 
-if (examData.tipe === 'Pilihan Ganda') {
- if (!formData.opsiA || !formData.opsiB || !formData.opsiC || !formData.opsiD) {
- toast.error("Semua 4 opsi jawaban harus diisi.");
-setFormLoading(false);
- return;
- }
- updatedSoalData.opsi = {
- A: formData.opsiA,
-B: formData.opsiB,
- C: formData.opsiC,
- D: formData.opsiD,
- };
- updatedSoalData.kunci_jawaban = formData.kunci_jawaban;
- // Hapus rubrik jika terisi (untuk konsistensi data PG)
- updatedSoalData.rubrik_penilaian = null; 
- } else if (examData.tipe === 'Esai') {
- updatedSoalData.rubrik_penilaian = formData.rubrik_penilaian;
- // Hapus data lain
- updatedSoalData.opsi = null; 
- updatedSoalData.kunci_jawaban = null;
- updatedSoalData.jumlah_input = null;
- } else if (examData.tipe === 'Esai Uraian') {
- if (!formData.jumlah_input || formData.jumlah_input < 1) {
- toast.error("Jumlah input minimal harus 1.");
- setFormLoading(false);
- return;
- }
- updatedSoalData.jumlah_input = formData.jumlah_input;
- // Hapus data lain
- updatedSoalData.opsi = null; 
- updatedSoalData.kunci_jawaban = null;
- updatedSoalData.rubrik_penilaian = formData.rubrik_penilaian;;
- }
+            let updatedSoalData: any = {
+                pertanyaan: formData.pertanyaan,
+                poin: formData.poin,
+                tipe_soal: targetTipe, // Update tipe soal
+            };
 
- try {
-            // Gunakan updateDoc, bukan addDoc
- const soalDocRef = doc(db, "exams", examId, "soal", editingSoal.id);
- await updateDoc(soalDocRef, updatedSoalData);
+            if (targetTipe === 'Pilihan Ganda') {
+                if (!formData.opsiA || !formData.opsiB || !formData.opsiC || !formData.opsiD) {
+                    toast.error("Semua 4 opsi jawaban harus diisi.");
+                    setFormLoading(false);
+                    return;
+                }
+                updatedSoalData.opsi = {
+                    A: formData.opsiA,
+                    B: formData.opsiB,
+                    C: formData.opsiC,
+                    D: formData.opsiD,
+                };
+                updatedSoalData.kunci_jawaban = formData.kunci_jawaban;
+                // Bersihkan field tipe lain
+                updatedSoalData.rubrik_penilaian = null;
+                updatedSoalData.jumlah_input = null;
 
- toast.success(`Soal nomor ${editingSoal.urutan} berhasil diperbarui!`);
+            } else if (targetTipe === 'Esai') {
+                updatedSoalData.rubrik_penilaian = formData.rubrik_penilaian;
+                // Bersihkan field tipe lain
+                updatedSoalData.opsi = null;
+                updatedSoalData.kunci_jawaban = null;
+                updatedSoalData.jumlah_input = null;
 
- fetchSoalList(); // Refresh daftar soal di kanan
- handleCancelEdit(); // Reset form kembali ke mode "Tambah"
+            } else if (targetTipe === 'Esai Uraian') {
+                if (!formData.jumlah_input || formData.jumlah_input < 1) {
+                    toast.error("Jumlah input minimal harus 1.");
+                    setFormLoading(false);
+                    return;
+                }
+                updatedSoalData.jumlah_input = formData.jumlah_input;
+                updatedSoalData.rubrik_penilaian = formData.rubrik_penilaian;
+                // Bersihkan field tipe lain
+                updatedSoalData.opsi = null;
+                updatedSoalData.kunci_jawaban = null;
+            }
 
- } catch (err: any) {
-console.error("Error updating question:", err);
-toast.error(err.message || "Gagal memperbarui soal.");
-} finally {
-setFormLoading(false);
- }
- };
+            try {
+                const soalDocRef = doc(db, "exams", examId, "soal", editingSoal.id);
+                await updateDoc(soalDocRef, updatedSoalData);
+
+                toast.success(`Soal nomor ${editingSoal.urutan} berhasil diperbarui!`);
+                fetchSoalList();
+                handleCancelEdit();
+
+            } catch (err: any) {
+                console.error("Error updating question:", err);
+                toast.error(err.message || "Gagal memperbarui soal.");
+            } finally {
+                setFormLoading(false);
+            }
+        };
 
     // --- BARU: Fungsi untuk membatalkan mode edit ---
  const handleCancelEdit = () => {
@@ -380,6 +386,7 @@ if (examData?.status !== 'Draft') {
  }
 
 setEditingSoal(soal); // Set soal yang aktif diedit
+setActiveTab(soal.tipe_soal);
 
 // Isi form di kiri dengan data soal yang dipilih
 if (soal.tipe_soal === 'Pilihan Ganda' && soal.opsi) {
@@ -703,6 +710,19 @@ const batch = writeBatch(db);
         )
     }
 
+    // --- HELPER VARIABLE UNTUK TAMPILAN FORM ---
+    const showPG = 
+        (examData?.tipe === "Pilihan Ganda") || 
+        (examData?.tipe === "PG dan Esai" && activeTab === "Pilihan Ganda");
+
+    const showEsai = 
+        (examData?.tipe === "Esai") || 
+        (examData?.tipe === "PG dan Esai" && activeTab === "Esai");
+
+    const showUraian = 
+        (examData?.tipe === "Esai Uraian") || 
+        (examData?.tipe === "PG dan Esai" && activeTab === "Esai Uraian");
+
     return (
         <div className="p-4 sm:p-6 bg-gray-50 min-h-screen font-sans">
             <button 
@@ -771,7 +791,37 @@ const batch = writeBatch(db);
                             </h2>
                         )}
                         
+                        {/* --- BAGIAN SWITCHER TAB (Hanya muncul jika Ujian Campuran) --- */}
+                        {examData.tipe === "PG dan Esai" && (
+                            <div className="mb-6 bg-gray-50 p-2 rounded-lg border border-gray-200 flex flex-wrap gap-2">
+                                <span className="text-sm font-medium text-gray-600 my-auto mr-2 px-2">
+                                    Pilih Tipe:
+                                </span>
+                                {[
+                                    { id: "Pilihan Ganda", label: "Pilihan Ganda" },
+                                    { id: "Esai", label: "Esai Singkat" },
+                                    { id: "Esai Uraian", label: "Uraian" }
+                                ].map((tab) => (
+                                    <button
+                                        key={tab.id}
+                                        type="button"
+                                        onClick={() => setActiveTab(tab.id as any)}
+                                        className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                                            activeTab === tab.id 
+                                                ? "bg-blue-600 text-white shadow-sm" 
+                                                : "bg-white text-gray-700 border hover:bg-gray-100"
+                                        }`}
+                                    >
+                                        {tab.label}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* --- FORMULIR UTAMA --- */}
                         <form onSubmit={editingSoal ? handleUpdateSoal : handleAddSoal} className="space-y-4">
+                            
+                            {/* Input Pertanyaan & Poin (Selalu Muncul) */}
                             <div>
                                 <label htmlFor="pertanyaan" className="block text-sm font-medium text-gray-700 mb-1">Pertanyaan <span className="text-red-500">*</span></label>
                                 <textarea
@@ -780,7 +830,7 @@ const batch = writeBatch(db);
                                     value={formData.pertanyaan}
                                     onChange={handleFormChange}
                                     rows={4}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100"
                                     placeholder="Tuliskan isi pertanyaan di sini..."
                                     required
                                     disabled={examData.status !== 'Draft'} 
@@ -795,33 +845,34 @@ const batch = writeBatch(db);
                                     name="poin"
                                     value={formData.poin}
                                     onChange={handleFormChange}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100"
                                     required
                                     disabled={examData.status !== 'Draft'} 
                                 />
                             </div>
 
-                            {examData.tipe === "Pilihan Ganda" && (
+                            {/* --- INPUT KHUSUS PILIHAN GANDA --- */}
+                            {showPG && (
                                 <div className="space-y-3 border-t pt-4">
                                     <h3 className="text-md font-semibold text-gray-700">Opsi Pilihan Ganda</h3>
                                     <div>
-                                        <label htmlFor="opsiA" className="block text-sm font-medium text-gray-700 mb-1">Opsi A <span className="text-red-500">*</span></label>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Opsi A *</label>
                                         <input type="text" name="opsiA" value={formData.opsiA} onChange={handleFormChange} className="w-full px-3 py-2 border border-gray-300 rounded-md disabled:bg-gray-100" required disabled={examData.status !== 'Draft'} />
                                     </div>
                                     <div>
-                                        <label htmlFor="opsiB" className="block text-sm font-medium text-gray-700 mb-1">Opsi B <span className="text-red-500">*</span></label>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Opsi B *</label>
                                         <input type="text" name="opsiB" value={formData.opsiB} onChange={handleFormChange} className="w-full px-3 py-2 border border-gray-300 rounded-md disabled:bg-gray-100" required disabled={examData.status !== 'Draft'} />
                                     </div>
                                     <div>
-                                        <label htmlFor="opsiC" className="block text-sm font-medium text-gray-700 mb-1">Opsi C <span className="text-red-500">*</span></label>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Opsi C *</label>
                                         <input type="text" name="opsiC" value={formData.opsiC} onChange={handleFormChange} className="w-full px-3 py-2 border border-gray-300 rounded-md disabled:bg-gray-100" required disabled={examData.status !== 'Draft'} />
                                     </div>
                                     <div>
-                                        <label htmlFor="opsiD" className="block text-sm font-medium text-gray-700 mb-1">Opsi D <span className="text-red-500">*</span></label>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Opsi D *</label>
                                         <input type="text" name="opsiD" value={formData.opsiD} onChange={handleFormChange} className="w-full px-3 py-2 border border-gray-300 rounded-md disabled:bg-gray-100" required disabled={examData.status !== 'Draft'} />
                                     </div>
                                     <div>
-                                        <label htmlFor="kunci_jawaban" className="block text-sm font-medium text-gray-700 mb-1">Kunci Jawaban <span className="text-red-500">*</span></label>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Kunci Jawaban *</label>
                                         <select
                                             name="kunci_jawaban"
                                             value={formData.kunci_jawaban}
@@ -838,73 +889,69 @@ const batch = writeBatch(db);
                                 </div>
                             )}
 
-                            {examData.tipe === "Esai" && (
+                            {/* --- INPUT KHUSUS ESAI (Singkat) --- */}
+                            {showEsai && (
                                 <div className="space-y-3 border-t pt-4">
                                      <h3 className="text-md font-semibold text-gray-700">Rubrik Penilaian (Opsional)</h3>
                                      <div>
                                         <label htmlFor="rubrik_penilaian" className="block text-sm font-medium text-gray-700 mb-1">Rubrik / Kunci Jawaban Esai</label>
                                         <textarea
-                                            id="rubrik_penilaian"
                                             name="rubrik_penilaian"
                                             value={formData.rubrik_penilaian}
                                             onChange={handleFormChange}
                                             rows={3}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md disabled:bg-gray-100"
-                                            placeholder="Tuliskan pedoman penilaian atau kunci jawaban untuk esai ini..."
+                                            placeholder="Tuliskan pedoman penilaian..."
                                             disabled={examData.status !== 'Draft'} 
                                         ></textarea>
                                     </div>
                                 </div>
                             )}
 
-                            {/* --- BARU: BLOK UNTUK ESAI URAIAN --- */}
-                            {examData.tipe === "Esai Uraian" && (
+                            {/* --- INPUT KHUSUS ESAI URAIAN (Multi-Input) --- */}
+                            {showUraian && (
                                 <div className="space-y-3 border-t mt-4">
-                                <h3 className="text-md font-semibold text-gray-700">Pengaturan Soal Uraian</h3>
-                                <div>
-                                        <label htmlFor="rubrik_penilaian" className="block text-sm font-medium text-gray-700 mb-1">Rubrik / Kunci Jawaban Esai (opsional)</label>
+                                    <h3 className="text-md font-semibold text-gray-700">Pengaturan Soal Uraian</h3>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Rubrik / Kunci Jawaban (opsional)</label>
                                         <textarea
-                                            id="rubrik_penilaian"
                                             name="rubrik_penilaian"
                                             value={formData.rubrik_penilaian}
                                             onChange={handleFormChange}
                                             rows={3}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md disabled:bg-gray-100"
-                                            placeholder="Tuliskan pedoman penilaian atau kunci jawaban untuk esai ini..."
+                                            placeholder="Tuliskan pedoman penilaian..."
                                             disabled={examData.status !== 'Draft'} 
                                         ></textarea>
                                     </div>
-                                <div>
-                                <label htmlFor="jumlah_input" className="block text-sm font-medium text-gray-700 mb-1">Jumlah Input Jawaban <span className="text-red-500">*</span></label>
-                                <input
-                                type="number"
-                                id="jumlah_input"
-                                name="jumlah_input"
-                                value={formData.jumlah_input}
-                                onChange={handleFormChange}
-                                min="1"
-                                max="20" // Batasi agar tidak terlalu banyak
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-                                required
-                                disabled={examData.status !== 'Draft'} />
-                                <p className="text-xs text-gray-500 mt-1">Siswa akan melihat sejumlah input ini (misal: 5).</p>
-                                </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Jumlah Input Jawaban *</label>
+                                        <input
+                                            type="number"
+                                            name="jumlah_input"
+                                            value={formData.jumlah_input}
+                                            onChange={handleFormChange}
+                                            min="1"
+                                            max="20"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md disabled:bg-gray-100"
+                                            required
+                                            disabled={examData.status !== 'Draft'} 
+                                        />
+                                        <p className="text-xs text-gray-500 mt-1">Siswa akan melihat sejumlah input ini (misal: 5 baris).</p>
+                                    </div>
                                 </div>
                             )}
                             
+                            {/* Tombol Simpan & Batal (Tidak Berubah) */}
                             <div className="pt-2 flex flex-col sm:flex-row gap-3">
                                 <button
                                     type="submit"
                                     disabled={formLoading || examData.status !== 'Draft'}
-                                    className={`w-full flex items-center justify-center gap-2 py-2 px-4 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed ${editingSoal
-                                        ? 'bg-blue-600 hover:bg-blue-700'
-                                        : 'bg-green-600 hover:bg-green-700' 
-
-                                    }
-                                    ${
-                                        editingSoal ? 'sm:w-2/3' : 'sm:w-full' 
+                                    className={`w-full flex items-center justify-center gap-2 py-2 px-4 text-white font-semibold rounded-lg shadow-md disabled:opacity-50 ${
+                                        editingSoal 
+                                            ? 'bg-blue-600 hover:bg-blue-700' 
+                                            : 'bg-green-600 hover:bg-green-700'
                                     }`}
-                                    
                                 >
                                     {formLoading ? (
                                         <Loader2 className="w-5 h-5 animate-spin" />
@@ -914,14 +961,14 @@ const batch = writeBatch(db);
                                     <span>{editingSoal ? 'Simpan Perubahan' : 'Tambah Soal'}</span>
                                 </button>
                                 {editingSoal && (
-                                <button
-                                    type="button" // PENTING: type="button" agar tidak submit form
-                                    onClick={handleCancelEdit}
-                                    disabled={formLoading}
-                                    className="w-full sm:w-1/3 flex items-center justify-center gap-2 py-2 px-4 bg-gray-200 text-gray-800 font-semibold rounded-lg shadow-sm hover:bg-gray-300 disabled:opacity-50">
-                                    <X className="w-5 h-5" />
-                                    Batal
-                                </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleCancelEdit}
+                                        disabled={formLoading}
+                                        className="w-full sm:w-1/3 flex items-center justify-center gap-2 py-2 px-4 bg-gray-200 text-gray-800 font-semibold rounded-lg hover:bg-gray-300"
+                                    >
+                                        <X className="w-5 h-5" /> Batal
+                                    </button>
                                 )}
                             </div>
                         </form>

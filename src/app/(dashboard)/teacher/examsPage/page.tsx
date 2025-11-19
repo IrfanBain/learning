@@ -38,7 +38,7 @@ interface ExamDoc {
     id: string;
     judul: string;
     deskripsi: string;
-    tipe: "Pilihan Ganda" | "Esai" | "Esai Uraian";
+    tipe: "Pilihan Ganda" | "Esai" | "Esai Uraian" | "PG dan Esai";
     mapel_ref: DocumentReference;
     kelas_ref: DocumentReference;
     guru_ref: DocumentReference;
@@ -54,7 +54,7 @@ interface ExamDoc {
 type ExamFormData = {
     judul: string;
     deskripsi: string;
-    tipe: "Pilihan Ganda" | "Esai" | "Esai Uraian";
+    tipe: "Pilihan Ganda" | "Esai" | "Esai Uraian" | "PG dan Esai";
     mapel_ref: string; // Akan menyimpan ID (string) dari dropdown
     kelas_ref: string; // Akan menyimpan ID (string) dari dropdown
     tanggal_selesai: string; // Akan menyimpan string tanggal-waktu
@@ -64,7 +64,7 @@ type ExamFormData = {
 const initialFormData: ExamFormData = {
     judul: "",
     deskripsi: "",
-    tipe: "Pilihan Ganda",
+    tipe: "PG dan Esai",
     mapel_ref: "",
     kelas_ref: "",
     tanggal_selesai: "",
@@ -494,7 +494,7 @@ return (
                     <h2 className="text-xl font-semibold text-gray-800 mb-4">{editingExamId ? "Edit Informasi Ujian" : "Buat Ujian Baru (Informasi Umum)"}</h2>
                     <p className="text-sm text-gray-500 mb-6">
                         <AlertTriangle className="w-4 h-4 inline-block mr-2 text-yellow-500" />
-                        Anda akan membuat sampul Ujiannya terlebih dahulu. Soal-soal akan ditambahkan di langkah berikutnya (di halaman edit).
+                        Anda akan membuat sampul Ujiannya terlebih dahulu. Soal-soal akan ditambahkan di langkah berikutnya (di halaman kelola soal).
                     </p>
                     
                     <form onSubmit={handleFormSubmit} className="space-y-4">
@@ -525,6 +525,7 @@ return (
                                         required
                                         disabled={!!editingExamId}
                                     >
+                                        <option value="PG dan Esai">PG dan Esai</option>
                                         <option value="Pilihan Ganda">Pilihan Ganda</option>
                                         <option value="Esai">Esai</option>
                                         <option value="Esai Uraian">Esai Uraian</option>
@@ -670,6 +671,7 @@ const ExamListItem = ({ exam, onDelete, onEdit }: { exam: ExamDoc, onDelete: (ex
             <div className="flex items-center gap-4 w-full">
                 {/* Ikon Tipe */}
                 <div className="flex-shrink-0">
+                    {exam.tipe === 'PG dan Esai' && <FileText className="w-6 h-6 text-yellow-500" />}
                     {exam.tipe === 'Pilihan Ganda' && <List className="w-6 h-6 text-blue-500" />}
                     {exam.tipe === 'Esai' && <FileText className="w-6 h-6 text-green-500" />}
                     {exam.tipe === 'Esai Uraian' && <FileText className="w-6 h-6 text-purple-500" />}
