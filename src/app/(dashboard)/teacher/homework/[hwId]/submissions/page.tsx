@@ -21,15 +21,20 @@ import {
     AlertTriangle, 
     Download,
     User,
+    Clock
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
 
+
+const TOLERANSI_JAM = 24;
 // --- DEFINISI TIPE ---
 
 interface HomeworkData {
     judul: string;
     kelas_ref: DocumentReference;
+    status: string;
+    tanggal_selesai: Timestamp;
 }
 
 interface StudentData {
@@ -41,7 +46,7 @@ interface StudentData {
 interface SubmissionData {
     id: string;
     student_ref: DocumentReference;
-    status_pengumpulan: "Terkumpul" | "Terlambat";
+    status_pengumpulan: "Terkumpul" | "Terlambat" | "Dinilai Manual";
     tanggal_pengumpulan: Timestamp;
     file_jawaban: {
         url: string;
@@ -220,8 +225,56 @@ const HomeworkSubmissionsPage = () => {
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
-                                {mergedData.map((data) => (
+                                {mergedData.map((data) => {
+                                // 1. Siapkan data dasar
+                                const hasSubmission = !!data.submission;
+                                
+                                // 2. HITUNG LOGIKA WAKTU (Untuk Logika Tombol)
+                                const now = new Date();
+                                const deadlineDate = homework?.tanggal_selesai.toDate() || new Date();
+                                const lockDate = new Date(deadlineDate.getTime() + (TOLERANSI_JAM * 60 * 60 * 1000));
+                                
+                                // Cek apakah PR sudah terkunci total?
+                                const isHomeworkLocked = (now > lockDate) || (homework?.status === 'Ditutup');
+                                
+                                // 3. TENTUKAN TOMBOL AKSI
+                                let actionButton;
+
+                                if (hasSubmission) {
+                                    // KASUS A: Siswa SUDAH mengerjakan -> Selalu bisa dinilai
+                                    actionButton = (
+                                        <Link 
+                                            href={`/teacher/homework/${hwId}/submissions/${data.submission?.id}?status=submitted`}
+                                            className="text-blue-600 hover:text-blue-900 font-medium"
+                                        >
+                                            Periksa & Nilai
+                                        </Link>
+                                    );
+                                } else {
+                                    // KASUS B: Siswa BELUM mengerjakan
+                                    if (isHomeworkLocked) {
+                                        // KASUS B1: Waktu Habis / Ditutup -> Boleh Nilai Manual
+                                        actionButton = (
+                                            <Link 
+                                                href={`/teacher/homework/${hwId}/submissions/${data.student.id}?status=pending`}
+                                                className="text-green-600 hover:text-green-900 font-medium flex items-center justify-end gap-1"
+                                            >
+                                                Beri Nilai Manual
+                                            </Link>
+                                        );
+                                    } else {
+                                        // KASUS B2: Masih Masa Pengerjaan -> TAHAN GURU
+                                        actionButton = (
+                                            <span className="text-gray-400 italic text-sm flex items-center justify-end gap-1 cursor-not-allowed" title="Siswa masih dalam masa toleransi pengerjaan">
+                                                <Clock className="w-3 h-3" /> Menunggu Siswa
+                                            </span>
+                                        );
+                                    }
+                                }
+
+                                return (
                                     <tr key={data.student.id} className="hover:bg-gray-50">
+                                        {/* Kolom Nama */}
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex items-center">
                                                 <div className="flex-shrink-0 h-10 w-10 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center">
@@ -234,18 +287,24 @@ const HomeworkSubmissionsPage = () => {
                                             </div>
                                         </td>
                                         
+                                        {/* Kolom Status */}
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             {data.submission ? (
-                                                data.submission.status_pengumpulan === "Terlambat" ? (
-                                                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Terlambat</span>
-                                                ) : (
-                                                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Terkumpul</span>
-                                                )
+                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                                    data.submission.status_pengumpulan === 'Terlambat' ? 'bg-yellow-100 text-yellow-800' :
+                                                    data.submission.status_pengumpulan === 'Dinilai Manual' ? 'bg-gray-100 text-gray-800' :
+                                                    'bg-green-100 text-green-800'
+                                                }`}>
+                                                    {data.submission.status_pengumpulan}
+                                                </span>
                                             ) : (
-                                                <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Belum Mengerjakan</span>
+                                                <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                                    Belum Mengumpulkan
+                                                </span>
                                             )}
                                         </td>
                                         
+                                        {/* Kolom Waktu */}
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                             {data.submission ? 
                                                 data.submission.tanggal_pengumpulan.toDate().toLocaleString('id-ID', {
@@ -254,30 +313,27 @@ const HomeworkSubmissionsPage = () => {
                                             }
                                         </td>
                                         
+                                        {/* Kolom File */}
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600">
                                             {data.submission?.file_jawaban ? (
                                                 <a href={data.submission.file_jawaban.url} target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:underline">
                                                     <Download className="w-4 h-4" /> Lihat
                                                 </a>
-                                            ) : (
-                                                <span className="text-gray-400">-</span>
-                                            )}
+                                            ) : '-'}
                                         </td>
                                         
+                                        {/* Kolom Nilai */}
                                         <td className="px-6 py-4 whitespace-nowrap text-lg font-bold text-blue-600">
                                             {data.submission?.nilai_tugas ?? '-'}
                                         </td>
                                         
+                                        {/* Kolom Aksi (Dinamis) */}
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <Link 
-                                                href={`/teacher/homework/${hwId}/submissions/${data.submission?.id || data.student.id}?status=${data.submission ? 'submitted' : 'pending'}`}
-                                                className="text-blue-600 hover:text-blue-900"
-                                            >
-                                                Periksa & Nilai
-                                            </Link>
+                                            {actionButton}
                                         </td>
                                     </tr>
-                                ))}
+                                );
+                            })}
                             </tbody>
                         </table>
                     </div>
