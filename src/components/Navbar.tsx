@@ -43,7 +43,7 @@ const Navbar = () => {
             <span className="text-[10px] text-gray-500 text-right">{user.role}</span>
           </div>
           <div className="w-10 h-10 rounded-full overflow-hidden bg-green-500 flex items-center justify-center text-white font-bold">
-            <Link href="/profile">
+            {/* <Link href="/profile"> */}
           {user.foto_profil ? (
             // Jika ada foto, tampilkan
             <Image
@@ -57,7 +57,7 @@ const Navbar = () => {
             // Jika tidak ada, tampilkan inisial
             <span>{getInitials(user.name)}</span>
           )}
-          </Link>
+          {/* </Link> */}
           </div>
         </div>
     </div>

@@ -34,7 +34,11 @@ import {
     Trash2,
     Eye,
     ChevronRight,
-    EyeOff // <-- BARU
+    Edit,
+    Lock,
+    EyeOff, // <-- BARU
+    LockOpen,
+
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
@@ -54,7 +58,7 @@ interface HomeworkDoc {
     id: string;
     judul: string;
     deskripsi: string;
-    status: "Draft" | "Dipublikasi";
+    status: "Draft" | "Dipublikasi" | "Ditutup";
     tanggal_dibuat: Timestamp;
     tanggal_selesai: Timestamp;
     guru_ref: DocumentReference;
@@ -70,7 +74,7 @@ type HomeworkFormData = {
     mapel_ref: string; 
     kelas_ref: string; 
     tanggal_selesai: string; 
-    status: "Draft" | "Dipublikasi";
+    status: "Draft" | "Dipublikasi" | "Ditutup";
 };
 const initialFormData: HomeworkFormData = {
     judul: "",
@@ -98,6 +102,7 @@ const TeacherHomeworkPage = () => {
     const [uploadedFile, setUploadedFile] = useState<UploadedFileInfo | null>(null);
     const [isUploading, setIsUploading] = useState(false);
     const [uploadError, setUploadError] = useState<string | null>(null);
+    const [editingHomeworkId, setEditingHomeworkId] = useState<string | null>(null);
 
     // --- PENGAMBILAN DATA (FETCHING) ---
     // (fetchDropdownData tidak berubah)
@@ -270,6 +275,47 @@ const TeacherHomeworkPage = () => {
             setIsUploading(false);
         }
     };
+
+    const handleCancelEdit = () => {
+        setEditingHomeworkId(null);
+        setFormData(initialFormData);
+        setUploadedFile(null);
+        setView('list');
+    };
+
+    // --- BARU: Fungsi Mulai Edit ---
+    const handleStartEdit = (hw: HomeworkDoc) => {
+        // 1. Cek Status: Hanya boleh edit jika Draft
+        if (hw.status !== 'Draft') {
+            toast.error("PR ini sudah Dipublikasi. Ubah status ke 'Draft' dulu untuk mengedit. Klik tombol mata untuk mengubah status", {
+                icon: <AlertTriangle className="text-red-500" />,
+            });
+            return;
+        }
+
+        // 2. Isi Form dengan data lama
+        // Catatan: Kita ambil ID dari referensi (mapel_ref.id)
+        setFormData({
+            judul: hw.judul,
+            deskripsi: hw.deskripsi,
+            mapel_ref: hw.mapel_ref.id, 
+            kelas_ref: hw.kelas_ref.id,
+            // Konversi Timestamp ke format datetime-local (YYYY-MM-DDTHH:MM)
+            tanggal_selesai: hw.tanggal_selesai.toDate().toISOString().slice(0, 16),
+            status: hw.status,
+        });
+
+        // 3. Isi data file jika ada
+        if (hw.file_lampiran) {
+            setUploadedFile(hw.file_lampiran);
+        } else {
+            setUploadedFile(null);
+        }
+
+        // 4. Set Mode Edit & Pindah View
+        setEditingHomeworkId(hw.id);
+        setView('create');
+    };
     
     // (handleRemoveFile tidak berubah)
     const handleRemoveFile = () => {
@@ -294,27 +340,35 @@ const TeacherHomeworkPage = () => {
                 throw new Error("Judul, Deskripsi, Mapel, Kelas, dan Tanggal Selesai wajib diisi.");
             }
 
-            const homeworkData = {
+           // Siapkan data dasar
+            const homeworkBaseData = {
                 judul: formData.judul,
                 deskripsi: formData.deskripsi,
                 mapel_ref: doc(db, "subjects", formData.mapel_ref),
                 kelas_ref: doc(db, "classes", formData.kelas_ref),
                 guru_ref: doc(db, "teachers", user.uid),
-                tanggal_dibuat: serverTimestamp(),
                 tanggal_selesai: Timestamp.fromDate(new Date(formData.tanggal_selesai)),
                 status: formData.status,
                 file_lampiran: uploadedFile, 
             };
+
+            if (editingHomeworkId) {
+                // --- LOGIKA UPDATE (EDIT) ---
+                const hwRef = doc(db, "homework", editingHomeworkId);
+                await updateDoc(hwRef, homeworkBaseData); // Update data
+                toast.success("Perubahan PR berhasil disimpan!");
+            } else {
+                // --- LOGIKA CREATE (BARU) ---
+                await addDoc(collection(db, "homework"), {
+                    ...homeworkBaseData,
+                    tanggal_dibuat: serverTimestamp(), // Hanya set tanggal buat saat baru
+                });
+                toast.success("Pekerjaan Rumah berhasil dibuat!");
+            }
             
-            await addDoc(collection(db, "homework"), homeworkData);
-            
-            toast.success("Pekerjaan Rumah berhasil disimpan!");
-            
-            setFormData(initialFormData);
-            setUploadedFile(null);
-            setUploadError(null);
-            setView('list');
-            fetchHomeworkList(user.uid); 
+            // Reset & Refresh
+            handleCancelEdit(); // Reset form & state
+            fetchHomeworkList(user.uid);
 
         } catch (err: any) {
             console.error("Error creating homework:", err);
@@ -325,29 +379,24 @@ const TeacherHomeworkPage = () => {
     };
 
     // --- BARU: Handler untuk ubah status Draft/Publikasi ---
-    const handleToggleStatus = async (hwId: string, currentStatus: "Draft" | "Dipublikasi") => {
-        const newStatus = currentStatus === "Draft" ? "Dipublikasi" : "Draft";
-        const actionText = newStatus === "Dipublikasi" ? "mempublikasikan" : "mengarsipkan (draft)";
-        
-        const loadingToastId = toast.loading(`Sedang ${actionText} PR...`);
-
-        try {
-            const hwRef = doc(db, "homework", hwId);
-            await updateDoc(hwRef, {
-                status: newStatus
-            });
-            toast.success(`PR berhasil ${actionText}!`, { id: loadingToastId });
-            // Perbarui list di UI secara lokal (lebih cepat)
-            setHomeworkList(prevList => 
-                prevList.map(hw => 
-                    hw.id === hwId ? { ...hw, status: newStatus } : hw
-                )
-            );
-        } catch (err: any) {
-            console.error("Error toggling status:", err);
-            toast.error(err.message || "Gagal mengubah status.", { id: loadingToastId });
-        }
-    };
+    // --- MODIFIKASI: Fungsi ubah status lebih fleksibel ---
+  const handleToggleStatus = async (id: string, newStatus: "Draft" | "Dipublikasi" | "Ditutup") => {
+      try {
+          await updateDoc(doc(db, "homework", id), { status: newStatus });
+          
+          setHomeworkList(prev => prev.map(h => h.id === id ? { ...h, status: newStatus } : h));
+          
+          let pesan = "";
+          if(newStatus === 'Dipublikasi') pesan = "PR Dipublikasikan (Siswa bisa mengerjakan)";
+          else if(newStatus === 'Draft') pesan = "PR dikembalikan ke Draft (Siswa tidak bisa lihat)";
+          else if(newStatus === 'Ditutup') pesan = "PR Ditutup (Siswa tidak bisa kirim jawaban lagi)";
+          
+          toast.success(pesan);
+      } catch (err) {
+          console.error(err);
+          toast.error("Gagal mengubah status PR");
+      }
+  }
 
     // --- BARU: Handler untuk Hapus PR ---
     const executeDelete = async (hwId: string, title: string) => {
@@ -427,7 +476,9 @@ const TeacherHomeworkPage = () => {
                         }`}
                     >
                         <PlusSquare className="w-5 h-5" />
-                        <span>Buat PR Baru</span>
+                        <span>
+                            {editingHomeworkId ? "Edit PR" : "Buat PR Baru"}
+                        </span>
                     </button>
                 </div>
             </div>
@@ -464,6 +515,7 @@ const TeacherHomeworkPage = () => {
                                     hw={hw} 
                                     onToggleStatus={handleToggleStatus}
                                     onDelete={handleDeleteHomework}
+                                    onEdit={handleStartEdit}
                                 />
                             ))}
                         </div>
@@ -494,7 +546,7 @@ const TeacherHomeworkPage = () => {
                                     />
                                 </div>
                                 <div>
-                                    <label htmlFor="deskripsi" className="block text-sm font-medium text-gray-700 mb-1">Deskripsi / Instruksi <span className="text-red-500">*</span></label>
+                                    <label htmlFor="deskripsi" className="block text-sm font-medium text-gray-700 mb-1">Deskripsi / Instruksi / Soal <span className="text-red-500">*</span></label>
                                     <textarea
                                         id="deskripsi"
                                         name="deskripsi"
@@ -502,7 +554,7 @@ const TeacherHomeworkPage = () => {
                                         onChange={handleFormChange}
                                         rows={8}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                                        placeholder="Tuliskan instruksi lengkap untuk siswa di sini..."
+                                        placeholder="Tuliskan instruksi lengkap untuk siswa di sini... atau ketikan soal"
                                         required
                                     ></textarea>
                                 </div>
@@ -622,19 +674,25 @@ const TeacherHomeworkPage = () => {
                             )}
                         </div>
                         
-                        {/* Tombol Aksi */}
-                        <div className="flex justify-end pt-4 border-t">
+                        {/* Tombol Aksi Form */}
+                        <div className="flex justify-end items-center gap-3 pt-4 border-t">
+                            {editingHomeworkId && (
+                                <button
+                                    type="button"
+                                    onClick={handleCancelEdit}
+                                    className="py-2 px-5 bg-gray-200 text-gray-800 font-semibold rounded-lg hover:bg-gray-300 disabled:opacity-50"
+                                >
+                                    Batal
+                                </button>
+                            )}
+                            
                             <button
                                 type="submit"
                                 disabled={formLoading || isUploading}
                                 className="flex items-center justify-center gap-2 py-2 px-6 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
                             >
-                                {formLoading ? (
-                                    <Loader2 className="w-5 h-5 animate-spin" />
-                                ) : (
-                                    <CheckCircle className="w-5 h-5" />
-                                )}
-                                <span>Simpan Pekerjaan Rumah</span>
+                                {formLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle className="w-5 h-5" />}
+                                <span>{editingHomeworkId ? "Simpan Perubahan" : "Buat PR"}</span>
                             </button>
                         </div>
                     </form>
@@ -646,67 +704,142 @@ const TeacherHomeworkPage = () => {
 
 // --- KOMPONEN PENDUKUNG (MODIFIKASI) ---
 
-const HomeworkListItem = ({ hw, onToggleStatus, onDelete }: { 
+const HomeworkListItem = ({ hw, onToggleStatus, onDelete, onEdit }: { 
     hw: HomeworkDoc,
-    onToggleStatus: (id: string, status: "Draft" | "Dipublikasi") => void,
-    onDelete: (id: string, title: string) => void
+    onToggleStatus: (id: string, status: "Draft" | "Dipublikasi" | "Ditutup") => void,
+    onDelete: (id: string, title: string) => void,
+    onEdit: (hw: HomeworkDoc) => void
 }) => {
     
-    const getStatusChip = (status: string) => {
-        if (status === 'Dipublikasi') {
-            return <span className="text-xs font-medium bg-green-100 text-green-800 px-2 py-0.5 rounded-full">{status}</span>;
+    // --- PERBAIKAN: Cek apakah deadline valid ---
+    const deadlineDate = hw.tanggal_selesai ? hw.tanggal_selesai.toDate() : null;
+    const isExpired = deadlineDate ? deadlineDate < new Date() : false;
+    
+    // Format tanggal yang aman
+    const deadlineString = deadlineDate 
+        ? deadlineDate.toLocaleString('id-ID', {
+            day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+          })
+        : "Belum diatur";
+
+    const renderStatusChip = () => {
+        // 1. Jika Draft, tetap kuning
+        if (hw.status === 'Draft') {
+            return (
+                <span className="px-2 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800 border border-yellow-200">
+                    Draft
+                </span>
+            );
         }
-        return <span className="text-xs font-medium bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">{status}</span>;
+        
+        // 2. Cek Ditutup Manual (INI YANG TADI KURANG/TERLEWAT)
+        if (hw.status === 'Ditutup') {
+            return (
+                <span className="px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800 border border-red-200">
+                    Ditutup 
+                </span>
+            );
+        }
+        
+        // 3. Cek Expired (Deadline Lewat)
+        // Ini hanya berlaku jika statusnya 'Dipublikasi' tapi waktunya habis
+        if (isExpired) {
+            return (
+                <span className="px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600 border border-gray-300">
+                    Selesai 
+                </span>
+            );
+        }
+
+        // 3. Jika Dipublikasi dan belum lewat -> "Dipublikasi" (Hijau)
+        return (
+            <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800 border border-green-200">
+                Dipublikasi
+            </span>
+        );
     };
     
-    const deadline = hw.tanggal_selesai.toDate().toLocaleString('id-ID', {
-        day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
-    });
-
-
     return (
         <div className="border border-gray-200 rounded-lg p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:bg-gray-50 transition-all">
-            {/* (Info PR tidak berubah) */}
             <div className="flex items-center gap-4">
+                {/* Ikon & Info PR (tetap sama) */}
                 <div className="flex-shrink-0">
-                    <BookUp className="w-6 h-6 text-blue-500" />
+                    <FileText className="w-6 h-6 text-blue-500" /> {/* Saya ganti BookUp jadi FileText jika BookUp tidak ada */}
                 </div>
                 <div>
                     <h3 className="text-lg font-semibold text-gray-800">{hw.judul}</h3>
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600 mt-1">
-                        <span>{hw.mapelNama}</span>
+                        <span>{hw.mapelNama || "Mapel N/A"}</span>
                         <span className="text-gray-300 hidden sm:inline">|</span>
-                        <span>{hw.kelasNama}</span>
+                        <span>{hw.kelasNama || "Kelas N/A"}</span>
                         <span className="text-gray-300 hidden sm:inline">|</span>
                         <span className="flex items-center gap-1">
-                            <Clock className="w-4 h-4" /> {deadline}
+                            <Clock className="w-4 h-4" /> {deadlineString}
                         </span>
                     </div>
                 </div>
             </div>
             
-            {/* --- BARU: Tombol Aksi --- */}
+            {/* Tombol Aksi */}
             <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                {getStatusChip(hw.status)}
+                {renderStatusChip()}
                 
                 {/* Tombol Publikasi / Draft */}
-                {hw.status === "Draft" ? (
+                {/* --- TOMBOL STATUS DINAMIS --- */}
+                
+                {/* 1. Jika DRAFT -> Tombol PUBLIKASI */}
+                {hw.status === "Draft" && (
                     <button
-                        onClick={() => onToggleStatus(hw.id, hw.status)}
+                        onClick={() => onToggleStatus(hw.id, "Dipublikasi")}
                         title="Publikasikan PR"
-                        className="flex items-center gap-1.5 text-sm text-green-600 hover:text-green-800 font-medium py-1 px-2 rounded-md hover:bg-green-50"
+                        className="p-2 rounded-md text-green-600 hover:bg-green-50 transition-colors"
                     >
                         <Eye className="w-4 h-4" />
                     </button>
-                ) : (
+                )}
+
+                {/* 2. Jika DIPUBLIKASI -> Tombol TUTUP & DRAFT */}
+                {hw.status === "Dipublikasi" && (
+                    <>
+                        {/* Tombol Tutup (Lock) */}
+                        <button
+                            onClick={() => onToggleStatus(hw.id, "Ditutup")}
+                            title="Tutup Pengumpulan (Siswa tidak bisa kirim lagi)"
+                            className="p-2 rounded-md text-orange-600 hover:bg-orange-50 transition-colors"
+                        >
+                            <Lock className="w-4 h-4" />
+                        </button>
+                        
+                        {/* Tombol Balik ke Draft */}
+                        <button
+                            onClick={() => onToggleStatus(hw.id, "Draft")}
+                            title="Kembalikan ke Draft (Sembunyikan)"
+                            className="p-2 rounded-md text-yellow-600 hover:bg-yellow-50 transition-colors"
+                        >
+                            <EyeOff className="w-4 h-4" />
+                        </button>
+                    </>
+                )}
+
+                {/* 3. Jika DITUTUP -> Tombol BUKA KEMBALI */}
+                {hw.status === "Ditutup" && (
                     <button
-                        onClick={() => onToggleStatus(hw.id, hw.status)}
-                        title="Batalkan publikasi (kembali ke Draft)"
-                        className="flex items-center gap-1.5 text-sm text-yellow-600 hover:text-yellow-800 font-medium py-1 px-2 rounded-md hover:bg-yellow-50"
+                        onClick={() => onToggleStatus(hw.id, "Dipublikasi")}
+                        title="Buka Kembali Pengumpulan"
+                        className="p-2 rounded-md text-green-600 hover:bg-green-50 transition-colors"
                     >
-                        <EyeOff className="w-4 h-4" />
+                        <LockOpen className="w-4 h-4" />
                     </button>
                 )}
+
+                {/* Tombol Edit */}
+                <button
+                    onClick={() => onEdit(hw)}
+                    title="Edit PR"
+                    className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 font-medium py-1 px-2 rounded-md hover:bg-blue-50"
+                >
+                    <Edit className="w-4 h-4" />
+                </button>
 
                 {/* Tombol Hapus */}
                 <button
@@ -720,7 +853,6 @@ const HomeworkListItem = ({ hw, onToggleStatus, onDelete }: {
                 {/* Tombol Lihat Pengumpulan */}
                 <Link 
                     href={`/teacher/homework/${hw.id}/submissions`}
-                    // target="_blank" // <-- Buka di tab baru
                     className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 font-medium py-1 px-2 rounded-md hover:bg-blue-50"
                 >
                     Lihat Pengumpulan <ChevronRight className="w-4 h-4" />
